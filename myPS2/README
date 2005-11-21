@@ -1,0 +1,19 @@
+readme
+
+to build MYPS2.ELF :
+
+1. Compile the libjpg project. This should put out libjpg.a in
+   myPS2/lib/.
+
+2. Compile the loader project. This should put out loader.elf in
+   myPS2/loader/bin/.
+
+3. Compile the libusb project. This should put out libusb.a in
+   myPS2/lib/.
+
+4. Compile the usb_irx project. This should put out usb_mass.irx
+   in myPS2/usb_irx/bin/.
+
+3. Compile the myPS2 project. This should put out MYPS2.ELF in
+   myPS2/bin/.
+
