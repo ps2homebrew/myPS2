@@ -45,7 +45,7 @@ MA  02110-1301, USA.
 #define ID_EDIT_RENAME_DIR	11
 
 typedef struct {
-	menuFramework_t	menu;
+	menuFramework_t	*menu;
 
 	menuText_t		MakeDir;
 	menuText_t		Rename;
@@ -78,21 +78,21 @@ static uiManagerMenu_t s_manager;
 // UI_InitManagerMenu - Initializes File Manager Controls
 //
 
-menuFramework_t *UI_InitManagerMenu( void )
+void UI_InitManagerMenu( void )
 {
-	s_manager.menu.draw		= UI_ManagerDraw;
-	s_manager.menu.input	= NULL;
-	s_manager.menu.clean	= UI_ManagerCleanup;
-	s_manager.menu.numItems	= 0;
+	s_manager.menu							= &uis.menus[ MENU_MANAGER ];
 
-	s_manager.menu.selectedItem = 0;
+	s_manager.menu->callback				= UI_ManagerCallback;
+	s_manager.menu->input					= NULL;
+
+	s_manager.menu->numItems				= 0;
+	s_manager.menu->selectedItem			= 0;
 
 	s_manager.Source.generic.type			= MENU_CONTROL_TEXT;
 	s_manager.Source.generic.flags			= 0;
 	s_manager.Source.generic.x				= 35;
 	s_manager.Source.generic.y				= 70;
 	s_manager.Source.generic.id				= ID_SOURCE;
-	s_manager.Source.generic.callback		= UI_EventManagerMenu;
 	s_manager.Source.text					= "Select Source";
 	s_manager.Source.size					= GR_FONT_SMALL;
 	s_manager.Source.color					= RGB(255, 255, 255);
@@ -102,7 +102,6 @@ menuFramework_t *UI_InitManagerMenu( void )
 	s_manager.Dest.generic.x				= 35;
 	s_manager.Dest.generic.y				= 90;;
 	s_manager.Dest.generic.id				= ID_DEST;
-	s_manager.Dest.generic.callback			= UI_EventManagerMenu;
 	s_manager.Dest.text						= "Select Dest";
 	s_manager.Dest.size						= GR_FONT_SMALL;
 	s_manager.Dest.color					= RGB(255, 255, 255);
@@ -112,7 +111,6 @@ menuFramework_t *UI_InitManagerMenu( void )
 	s_manager.MakeDir.generic.x				= 35;
 	s_manager.MakeDir.generic.y				= 120;
 	s_manager.MakeDir.generic.id			= ID_MAKEDIR;
-	s_manager.MakeDir.generic.callback		= UI_EventManagerMenu;
 	s_manager.MakeDir.text					= "Make Dir";
 	s_manager.MakeDir.size					= GR_FONT_SMALL;
 	s_manager.MakeDir.color					= RGB(255, 255, 255);
@@ -122,7 +120,6 @@ menuFramework_t *UI_InitManagerMenu( void )
 	s_manager.Rename.generic.x				= 35;
 	s_manager.Rename.generic.y				= 140;
 	s_manager.Rename.generic.id				= ID_RENAME;
-	s_manager.Rename.generic.callback		= UI_EventManagerMenu;
 	s_manager.Rename.text					= "Rename";
 	s_manager.Rename.size					= GR_FONT_SMALL;
 	s_manager.Rename.color					= RGB(255, 255, 255);
@@ -132,7 +129,6 @@ menuFramework_t *UI_InitManagerMenu( void )
 	s_manager.Delete.generic.x				= 35;
 	s_manager.Delete.generic.y				= 160;
 	s_manager.Delete.generic.id				= ID_DELETE;
-	s_manager.Delete.generic.callback		= UI_EventManagerMenu;
 	s_manager.Delete.text					= "Delete";
 	s_manager.Delete.size					= GR_FONT_SMALL;
 	s_manager.Delete.color					= RGB(255, 255, 255);
@@ -142,7 +138,6 @@ menuFramework_t *UI_InitManagerMenu( void )
 	s_manager.Copy.generic.x				= 35;
 	s_manager.Copy.generic.y				= 190;
 	s_manager.Copy.generic.id				= ID_COPY;
-	s_manager.Copy.generic.callback			= UI_EventManagerMenu;
 	s_manager.Copy.text						= "Start Copying";
 	s_manager.Copy.size						= GR_FONT_SMALL;
 	s_manager.Copy.color					= RGB(255, 255, 255);
@@ -152,7 +147,6 @@ menuFramework_t *UI_InitManagerMenu( void )
 	s_manager.GoBack.generic.x				= 35;
 	s_manager.GoBack.generic.y				= 210;
 	s_manager.GoBack.generic.id				= ID_GOBACK;
-	s_manager.GoBack.generic.callback		= UI_EventManagerMenu;
 	s_manager.GoBack.text					= "Go Back";
 	s_manager.GoBack.size					= GR_FONT_SMALL;
 	s_manager.GoBack.color					= RGB(255, 255, 255);
@@ -162,7 +156,6 @@ menuFramework_t *UI_InitManagerMenu( void )
 	s_manager.DirViewSrc.generic.x			= 200;
 	s_manager.DirViewSrc.generic.y			= 40;
 	s_manager.DirViewSrc.generic.id			= ID_DIRVIEW_SOURCE;
-	s_manager.DirViewSrc.generic.callback	= UI_EventManagerMenu;
 	s_manager.DirViewSrc.width				= 400;
 	s_manager.DirViewSrc.height				= 200;
 	s_manager.DirViewSrc.color				= RGB(81, 112, 164);
@@ -172,7 +165,6 @@ menuFramework_t *UI_InitManagerMenu( void )
 	s_manager.DirViewDest.generic.x			= 200;
 	s_manager.DirViewDest.generic.y			= 40;
 	s_manager.DirViewDest.generic.id		= ID_DIRVIEW_DEST;
-	s_manager.DirViewDest.generic.callback	= UI_EventManagerMenu;
 	s_manager.DirViewDest.width				= 400;
 	s_manager.DirViewDest.height			= 200;
 	s_manager.DirViewDest.color				= RGB(81, 112, 164);
@@ -191,7 +183,6 @@ menuFramework_t *UI_InitManagerMenu( void )
 	s_manager.EditMkdir.generic.x			= 200;
 	s_manager.EditMkdir.generic.y			= 250;
 	s_manager.EditMkdir.generic.id			= ID_EDIT_MKDIR;
-	s_manager.EditMkdir.generic.callback	= UI_EventManagerMenu;
 	s_manager.EditMkdir.width				= 400;
 	s_manager.EditMkdir.height				= 200;
 	s_manager.EditMkdir.color				= RGB(81, 112, 164);
@@ -201,45 +192,348 @@ menuFramework_t *UI_InitManagerMenu( void )
 	s_manager.EditRename.generic.x			= 200;
 	s_manager.EditRename.generic.y			= 250;
 	s_manager.EditRename.generic.id			= ID_EDIT_RENAME_DIR;
-	s_manager.EditRename.generic.callback	= UI_EventManagerMenu;
 	s_manager.EditRename.width				= 400;
 	s_manager.EditRename.height				= 200;
 	s_manager.EditRename.color				= RGB(81, 112, 164);
 
 	// add items to menu container
-	UI_AddItemToMenu( &s_manager.menu, &s_manager.Source );
-	UI_AddItemToMenu( &s_manager.menu, &s_manager.Dest );
-	UI_AddItemToMenu( &s_manager.menu, &s_manager.MakeDir );
-	UI_AddItemToMenu( &s_manager.menu, &s_manager.Rename );
-	UI_AddItemToMenu( &s_manager.menu, &s_manager.Delete );
-	UI_AddItemToMenu( &s_manager.menu, &s_manager.Copy );
-	UI_AddItemToMenu( &s_manager.menu, &s_manager.GoBack );
+	UI_AddItemToMenu( s_manager.menu, &s_manager.Source );
+	UI_AddItemToMenu( s_manager.menu, &s_manager.Dest );
+	UI_AddItemToMenu( s_manager.menu, &s_manager.MakeDir );
+	UI_AddItemToMenu( s_manager.menu, &s_manager.Rename );
+	UI_AddItemToMenu( s_manager.menu, &s_manager.Delete );
+	UI_AddItemToMenu( s_manager.menu, &s_manager.Copy );
+	UI_AddItemToMenu( s_manager.menu, &s_manager.GoBack );
 
-	UI_AddItemToMenu( &s_manager.menu, &s_manager.DirViewSrc );
-	UI_AddItemToMenu( &s_manager.menu, &s_manager.DirViewDest );
-	UI_AddItemToMenu( &s_manager.menu, &s_manager.Progress );
+	UI_AddItemToMenu( s_manager.menu, &s_manager.DirViewSrc );
+	UI_AddItemToMenu( s_manager.menu, &s_manager.DirViewDest );
+	UI_AddItemToMenu( s_manager.menu, &s_manager.Progress );
 
-	UI_AddItemToMenu( &s_manager.menu, &s_manager.EditMkdir );
-	UI_AddItemToMenu( &s_manager.menu, &s_manager.EditRename );
+	UI_AddItemToMenu( s_manager.menu, &s_manager.EditMkdir );
+	UI_AddItemToMenu( s_manager.menu, &s_manager.EditRename );
 
 	memset( s_manager.currentFile, 0, sizeof(s_manager.currentFile) );
-
-	return &s_manager.menu;
 }
 
 //
-// UI_ManagerCleanup - Clean up
+// UI_ManagerCallback
 //
 
-void UI_ManagerCleanup( void )
+int UI_ManagerCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long sParam )
 {
-	// clear up dirview controls
-	UI_DirView_Clear( &s_manager.DirViewSrc );
-	UI_DirView_Clear( &s_manager.DirViewDest );
+	int					id;
+	int					nEnable;
+	const char			*pStr;
+	const char			*pPath;
+	char				strDir[256];
+	const fileInfo_t	*pFileInfo;
+
+	id = sParam;
+
+	// need to enable "Start Copying" button?
+	if( id == ID_DIRVIEW_SOURCE || id == ID_DIRVIEW_DEST )
+	{
+		nEnable = 1;
+
+		if( UI_DirView_GetDir(&s_manager.DirViewSrc)[0] == '\0' )
+			nEnable = 0;
+
+		pStr = UI_DirView_GetDir(&s_manager.DirViewDest);
+
+		// can't copy to cd/dvd
+		if( pStr[0] == '\0' || strstr( pStr, "cdfs:" ) != NULL )
+			nEnable = 0;
+
+		// no files selected
+		if( !UI_DirView_MarkedCount(&s_manager.DirViewSrc) )
+			nEnable = 0;
+
+		if( nEnable )
+			s_manager.Copy.generic.flags &= ~CFL_INACTIVE;
+		else
+			s_manager.Copy.generic.flags |= CFL_INACTIVE;
+	}
+
+	// need to enable "Make Dir" button?
+	if( id == ID_DIRVIEW_SOURCE )
+	{
+		nEnable = 1;
+
+		pStr = UI_DirView_GetDir( &s_manager.DirViewSrc );
+
+		if( strstr( pStr, "cdfs:" ) || pStr[0] == '\0' )
+			nEnable = 0;
+
+		if( nEnable )
+			s_manager.MakeDir.generic.flags &= ~CFL_INACTIVE;
+		else
+			s_manager.MakeDir.generic.flags |= CFL_INACTIVE;
+
+		// may have also to close makedir editfield it it's up
+		if( !(s_manager.EditMkdir.generic.flags & CFL_INVISIBLE) )
+		{
+			// need to hide it
+			if( !nEnable )
+			{
+				s_manager.EditMkdir.generic.flags |= (CFL_INVISIBLE | CFL_INACTIVE);
+
+				// enable progress bar
+				s_manager.Progress.generic.flags &= ~CFL_INVISIBLE;
+			}
+		}
+	}
+
+	// need to enable "Delete" button?
+	if( id == ID_DIRVIEW_SOURCE )
+	{
+		nEnable = 1;
+
+		pStr = UI_DirView_GetDir(&s_manager.DirViewSrc);
+
+		// can't delete from cd/dvd
+		if( pStr[0] == '\0' || strstr( pStr, "cdfs:" ) != NULL )
+			nEnable = 0;
+
+		// no files selected
+		if( !UI_DirView_MarkedCount(&s_manager.DirViewSrc) )
+			nEnable = 0;
+
+		if( nEnable )
+			s_manager.Delete.generic.flags &= ~CFL_INACTIVE;
+		else
+			s_manager.Delete.generic.flags |= CFL_INACTIVE;
+	}
+
+	// need to enable "Rename" button ?
+	if( id == ID_DIRVIEW_SOURCE )
+	{
+		nEnable = 1;
+
+		pStr = UI_DirView_GetDir(&s_manager.DirViewSrc);
+
+		// can't rename files on cd/dvd
+		if( pStr[0] == '\0' || strstr( pStr, "cdfs:" ) != NULL )
+			nEnable = 0;
+
+		// can only rename one selected file
+		if( UI_DirView_MarkedCount(&s_manager.DirViewSrc) != 1 )
+			nEnable = 0;
+
+		if( nEnable )
+			s_manager.Rename.generic.flags &= ~CFL_INACTIVE;
+		else
+			s_manager.Rename.generic.flags |= CFL_INACTIVE;
+
+		// may also have to close rename editfield if it's visible
+		if( !(s_manager.EditRename.generic.flags & CFL_INVISIBLE) )
+		{
+			if( !nEnable )
+			{
+				s_manager.EditRename.generic.flags |= (CFL_INVISIBLE | CFL_INACTIVE);
+
+				// show progress bar
+				s_manager.Progress.generic.flags &= ~CFL_INVISIBLE;
+			}
+		}
+	}
+
+	switch( nMsg )
+	{
+		// clean up dirview controls
+		case MSG_CLOSE:
+			UI_DirView_Clear( &s_manager.DirViewSrc );
+			UI_DirView_Clear( &s_manager.DirViewDest );
+			return 1;
+
+		case MSG_DRAW:
+			UI_ManagerDraw();
+			return 1;
+
+		case MSG_CONTROL:
+			switch( sParam )
+			{
+				case ID_MAKEDIR:
+					s_manager.EditMkdir.generic.flags &= ~(CFL_INVISIBLE | CFL_INACTIVE);
+
+					// hide progress bar
+					s_manager.Progress.generic.flags |= CFL_INVISIBLE;
+
+					// hide rename editfield (if its even visible)
+					s_manager.EditRename.generic.flags |= (CFL_INVISIBLE | CFL_INACTIVE);
+
+					UI_SelectItemById( s_manager.menu, ID_EDIT_MKDIR );
+					UI_Refresh();
+					return 1;
+
+				case ID_RENAME:
+					s_manager.EditRename.generic.flags &= ~(CFL_INVISIBLE | CFL_INACTIVE);
+
+					s_manager.Progress.generic.flags |= CFL_INVISIBLE;
+
+					// hide mkdir editfield (if its even visible)
+					s_manager.EditMkdir.generic.flags |= (CFL_INVISIBLE | CFL_INACTIVE);
+
+					// get and set selected file
+					pFileInfo = UI_DirView_GetMarked( &s_manager.DirViewSrc, 0 );
+					UI_Editfield_SetString( &s_manager.EditRename, pFileInfo->name );
+
+					// save old file name
+					strcpy( s_manager.oldName, UI_DirView_GetDir(&s_manager.DirViewSrc) );
+					strcat( s_manager.oldName, pFileInfo->name );
+
+					UI_SelectItemById( s_manager.menu, ID_EDIT_RENAME_DIR );
+					UI_Refresh();
+					return 1;
+
+				case ID_DELETE:
+					UI_ManagerDeleteFiles();
+					return 1;
+
+				// switch to DirViewSrc control
+				case ID_SOURCE:
+					s_manager.DirViewSrc.generic.flags &= ~(CFL_INVISIBLE | CFL_INACTIVE);
+					s_manager.DirViewDest.generic.flags |= (CFL_INVISIBLE | CFL_INACTIVE);
+
+					UI_SelectItemById( s_manager.menu, ID_DIRVIEW_SOURCE );
+					UI_Refresh();
+					return 1;
+
+				// switch to DirViewDest control
+				case ID_DEST:
+					s_manager.DirViewDest.generic.flags &= ~(CFL_INVISIBLE | CFL_INACTIVE);
+					s_manager.DirViewSrc.generic.flags |= (CFL_INVISIBLE | CFL_INACTIVE);
+
+					UI_SelectItemById( s_manager.menu, ID_DIRVIEW_DEST );
+					UI_Refresh();
+					return 1;
+
+				case ID_COPY:
+					// make sure status information is visible when copying stuff
+					s_manager.EditMkdir.generic.flags	|= (CFL_INVISIBLE | CFL_INACTIVE);
+					s_manager.EditRename.generic.flags	|= (CFL_INVISIBLE | CFL_INACTIVE);
+
+					// show status bar
+					s_manager.Progress.generic.flags	&= ~CFL_INVISIBLE;
+
+					UI_ManagerStartCopying();
+
+					// refresh target directory
+					UI_DirView_Refresh( &s_manager.DirViewDest );
+					UI_Refresh();
+					return 1;
+
+				case ID_GOBACK:
+					UI_SetActiveMenu(MENU_MAIN);
+					return 1;
+
+				case ID_DIRVIEW_SOURCE:
+					switch( fParam )
+					{
+						// update displayed source path
+						case NOT_DV_CHANGED_DIR:
+							UI_Refresh();
+							return 1;
+
+						// update "number of files to copy" display
+						case NOT_DV_MARKED_ENTRY:
+							UI_Refresh();
+							return 1;
+
+						case NOT_DV_UNMARKED_ENTRY:
+							UI_Refresh();
+							return 1;
+					}
+					return 1;
+
+				case ID_DIRVIEW_DEST:
+					switch( fParam )
+					{
+						case NOT_DV_CHANGED_DIR:
+							UI_Refresh();
+							return 1;
+					}
+					return 1;
+
+				case ID_EDIT_MKDIR:
+					switch( fParam )
+					{
+						// user is done entering dir name
+						case NOT_EF_CLICKED_OK:
+							pStr = UI_Editfield_GetString( &s_manager.EditMkdir );
+
+							// attempt to create new dir and refresh directory view
+							pPath = UI_DirView_GetDir( &s_manager.DirViewSrc );
+
+							strcpy( strDir, pPath );
+							strcat( strDir, pStr );
+
+							FileMkdir( strDir );
+
+							s_manager.EditMkdir.generic.flags |= (CFL_INVISIBLE | CFL_INACTIVE);
+							s_manager.Progress.generic.flags &= ~CFL_INVISIBLE;
+
+							UI_SelectItemById( s_manager.menu, ID_DIRVIEW_SOURCE );
+					
+							UI_DirView_Refresh( &s_manager.DirViewSrc );
+							UI_Refresh();
+							return 1;
+
+						// user cancelled operation
+						case NOT_EF_CLICKED_CANCEL:
+							s_manager.EditMkdir.generic.flags |= (CFL_INVISIBLE | CFL_INACTIVE);
+
+							// show progress bar
+							s_manager.Progress.generic.flags &= ~CFL_INVISIBLE;
+
+							UI_SelectItemById( s_manager.menu, ID_MAKEDIR );
+							UI_Refresh();
+							return 1;
+					}
+					return 1;
+
+				case ID_EDIT_RENAME_DIR:
+					switch( fParam )
+					{
+						// attempt to rename file
+						case NOT_EF_CLICKED_OK:
+							pStr = UI_Editfield_GetString( &s_manager.EditRename );
+
+							// build new path
+							strcpy( s_manager.newName, UI_DirView_GetDir(&s_manager.DirViewSrc) );
+							strcat( s_manager.newName, pStr );
+					
+							FileRename( s_manager.oldName, s_manager.newName );
+
+							s_manager.EditRename.generic.flags |= (CFL_INVISIBLE | CFL_INACTIVE);
+							s_manager.Progress.generic.flags &= ~CFL_INVISIBLE;
+
+							UI_SelectItemById( s_manager.menu, ID_DIRVIEW_SOURCE );
+
+							UI_DirView_Refresh( &s_manager.DirViewSrc );
+							UI_Refresh();
+							return 1;
+
+						// cancelled
+						case NOT_EF_CLICKED_CANCEL:
+							s_manager.EditRename.generic.flags |= (CFL_INVISIBLE | CFL_INACTIVE);
+
+							// show progress bar
+							s_manager.EditRename.generic.flags &= ~CFL_INACTIVE;
+
+							UI_SelectItemById( s_manager.menu, ID_RENAME );
+							UI_Refresh();
+							return 1;
+					}
+					return 1;
+			}
+			break;
+	}
+
+	return 0;
 }
 
 //
-// UI_ManagerDraw - Custom Draw Function
+// UI_ManagerDraw
 //
 
 void UI_ManagerDraw( void )
@@ -257,7 +551,7 @@ void UI_ManagerDraw( void )
 	GR_SetBlendMode( GR_BLEND_NONE );
 
 	// draw controls
-	UI_DrawMenu( &s_manager.menu );
+	UI_DrawMenu( s_manager.menu );
 
 	// draw static text
 	GR_SetFontColor( RGB(255, 255, 255) );
@@ -372,310 +666,6 @@ void UI_ManagerDraw( void )
 
 	sprintf( buf, "%i", numSelected );
 	GR_DrawTextExt( 450, 350, buf, GR_FONT_SMALL );
-}
-
-//
-// UI_EventManagerMenu
-//
-
-void UI_EventManagerMenu( void *pItem, int nCode )
-{
-	int					id;
-	int					nEnable;
-	const char			*pStr;
-	const char			*pPath;
-	char				strDir[256];
-	const fileInfo_t	*pFileInfo;
-
-	if(!pItem)
-		return;
-
-	id = ((menuCommon_t*)pItem)->id;
-
-	// need to enable "Start Copying" button?
-	if( id == ID_DIRVIEW_SOURCE || id == ID_DIRVIEW_DEST )
-	{
-		nEnable = 1;
-
-		if( UI_DirView_GetDir(&s_manager.DirViewSrc)[0] == '\0' )
-			nEnable = 0;
-
-		pStr = UI_DirView_GetDir(&s_manager.DirViewDest);
-
-		// can't copy to cd/dvd
-		if( pStr[0] == '\0' || strstr( pStr, "cdfs:" ) != NULL )
-			nEnable = 0;
-
-		// no files selected
-		if( !UI_DirView_MarkedCount(&s_manager.DirViewSrc) )
-			nEnable = 0;
-
-		if( nEnable )
-			s_manager.Copy.generic.flags &= ~CFL_INACTIVE;
-		else
-			s_manager.Copy.generic.flags |= CFL_INACTIVE;
-	}
-
-	// need to enable "Make Dir" button?
-	if( id == ID_DIRVIEW_SOURCE )
-	{
-		nEnable = 1;
-
-		pStr = UI_DirView_GetDir( &s_manager.DirViewSrc );
-
-		if( strstr( pStr, "cdfs:" ) || pStr[0] == '\0' )
-			nEnable = 0;
-
-		if( nEnable )
-			s_manager.MakeDir.generic.flags &= ~CFL_INACTIVE;
-		else
-			s_manager.MakeDir.generic.flags |= CFL_INACTIVE;
-
-		// may have also to close makedir editfield it it's up
-		if( !(s_manager.EditMkdir.generic.flags & CFL_INVISIBLE) )
-		{
-			// need to hide it
-			if( !nEnable )
-			{
-				s_manager.EditMkdir.generic.flags |= (CFL_INVISIBLE | CFL_INACTIVE);
-
-				// enable progress bar
-				s_manager.Progress.generic.flags &= ~CFL_INVISIBLE;
-			}
-		}
-	}
-
-	// need to enable "Delete" button?
-	if( id == ID_DIRVIEW_SOURCE )
-	{
-		nEnable = 1;
-
-		pStr = UI_DirView_GetDir(&s_manager.DirViewSrc);
-
-		// can't delete from cd/dvd
-		if( pStr[0] == '\0' || strstr( pStr, "cdfs:" ) != NULL )
-			nEnable = 0;
-
-		// no files selected
-		if( !UI_DirView_MarkedCount(&s_manager.DirViewSrc) )
-			nEnable = 0;
-
-		if( nEnable )
-			s_manager.Delete.generic.flags &= ~CFL_INACTIVE;
-		else
-			s_manager.Delete.generic.flags |= CFL_INACTIVE;
-	}
-
-	// need to enable "Rename" button ?
-	if( id == ID_DIRVIEW_SOURCE )
-	{
-		nEnable = 1;
-
-		pStr = UI_DirView_GetDir(&s_manager.DirViewSrc);
-
-		// can't rename files on cd/dvd
-		if( pStr[0] == '\0' || strstr( pStr, "cdfs:" ) != NULL )
-			nEnable = 0;
-
-		// can only rename one selected file
-		if( UI_DirView_MarkedCount(&s_manager.DirViewSrc) != 1 )
-			nEnable = 0;
-
-		if( nEnable )
-			s_manager.Rename.generic.flags &= ~CFL_INACTIVE;
-		else
-			s_manager.Rename.generic.flags |= CFL_INACTIVE;
-
-		// may also have to close rename editfield if it's visible
-		if( !(s_manager.EditRename.generic.flags & CFL_INVISIBLE) )
-		{
-			if( !nEnable )
-			{
-				s_manager.EditRename.generic.flags |= (CFL_INVISIBLE | CFL_INACTIVE);
-
-				// show progress bar
-				s_manager.Progress.generic.flags &= ~CFL_INVISIBLE;
-			}
-		}
-	}
-
-	switch( id )
-	{
-		case ID_MAKEDIR:
-			s_manager.EditMkdir.generic.flags &= ~(CFL_INVISIBLE | CFL_INACTIVE);
-
-			// hide progress bar
-			s_manager.Progress.generic.flags |= CFL_INVISIBLE;
-
-			// hide rename editfield (if its even visible)
-			s_manager.EditRename.generic.flags |= (CFL_INVISIBLE | CFL_INACTIVE);
-
-			UI_SelectItemById( &s_manager.menu, ID_EDIT_MKDIR );
-			UI_Refresh();
-			break;
-
-		case ID_RENAME:
-			s_manager.EditRename.generic.flags &= ~(CFL_INVISIBLE | CFL_INACTIVE);
-
-			// hide progress bar
-			s_manager.Progress.generic.flags |= CFL_INVISIBLE;
-
-			// hide mkdir editfield (if its even visible)
-			s_manager.EditMkdir.generic.flags |= (CFL_INVISIBLE | CFL_INACTIVE);
-
-			// get and set selected file
-			pFileInfo = UI_DirView_GetMarked( &s_manager.DirViewSrc, 0 );
-			UI_Editfield_SetString( &s_manager.EditRename, pFileInfo->name );
-
-			// save old file name
-			strcpy( s_manager.oldName, UI_DirView_GetDir(&s_manager.DirViewSrc) );
-			strcat( s_manager.oldName, pFileInfo->name );
-
-			UI_SelectItemById( &s_manager.menu, ID_EDIT_RENAME_DIR );
-			UI_Refresh();
-			break;
-
-		case ID_DELETE:
-			UI_ManagerDeleteFiles();
-			break;
-
-		// switch to DirViewSrc control
-		case ID_SOURCE:
-			s_manager.DirViewSrc.generic.flags &= ~(CFL_INVISIBLE | CFL_INACTIVE);
-			s_manager.DirViewDest.generic.flags |= (CFL_INVISIBLE | CFL_INACTIVE);
-
-			UI_SelectItemById( &s_manager.menu, ID_DIRVIEW_SOURCE );
-			UI_Refresh();
-			break;
-
-		// switch to DirViewDest control
-		case ID_DEST:
-			s_manager.DirViewDest.generic.flags &= ~(CFL_INVISIBLE | CFL_INACTIVE);
-			s_manager.DirViewSrc.generic.flags |= (CFL_INVISIBLE | CFL_INACTIVE);
-
-			UI_SelectItemById( &s_manager.menu, ID_DIRVIEW_DEST );
-			UI_Refresh();
-			break;
-
-		case ID_COPY:
-			// make sure status information is visible when copying stuff
-			s_manager.EditMkdir.generic.flags	|= (CFL_INVISIBLE | CFL_INACTIVE);
-			s_manager.EditRename.generic.flags	|= (CFL_INVISIBLE | CFL_INACTIVE);
-
-			// show status bar
-			s_manager.Progress.generic.flags	&= ~CFL_INVISIBLE;
-
-			UI_ManagerStartCopying();
-
-			// refresh target directory
-			UI_DirView_Refresh( &s_manager.DirViewDest );
-			UI_Refresh();
-			break;
-
-		case ID_GOBACK:
-			UI_SetActiveMenu(MENU_ID_MAIN);
-			break;
-
-		case ID_DIRVIEW_SOURCE:
-			switch( nCode )
-			{
-				// update displayed source path
-				case NOT_DV_CHANGED_DIR:
-					UI_Refresh();
-					break;
-
-				// update "number of files to copy" display
-				case NOT_DV_MARKED_ENTRY:
-					UI_Refresh();
-					break;
-
-				case NOT_DV_UNMARKED_ENTRY:
-					UI_Refresh();
-					break;
-			}
-			break;
-
-		case ID_DIRVIEW_DEST:
-			switch( nCode )
-			{
-				case NOT_DV_CHANGED_DIR:
-					UI_Refresh();
-					break;
-			}
-			break;
-
-		case ID_EDIT_MKDIR:
-			switch( nCode )
-			{
-				// user is done entering dir name
-				case NOT_EF_CLICKED_OK:
-					pStr = UI_Editfield_GetString( &s_manager.EditMkdir );
-
-					// attempt to create new dir and refresh directory view
-					pPath = UI_DirView_GetDir( &s_manager.DirViewSrc );
-
-					strcpy( strDir, pPath );
-					strcat( strDir, pStr );
-
-					FileMkdir( strDir );
-
-					s_manager.EditMkdir.generic.flags |= (CFL_INVISIBLE | CFL_INACTIVE);
-					s_manager.Progress.generic.flags &= ~CFL_INVISIBLE;
-
-					UI_SelectItemById( &s_manager.menu, ID_DIRVIEW_SOURCE );
-					
-					UI_DirView_Refresh( &s_manager.DirViewSrc );
-					UI_Refresh();
-					break;
-
-				// user cancelled operation
-				case NOT_EF_CLICKED_CANCEL:
-					s_manager.EditMkdir.generic.flags |= (CFL_INVISIBLE | CFL_INACTIVE);
-
-					// show progress bar
-					s_manager.Progress.generic.flags &= ~CFL_INVISIBLE;
-
-					UI_SelectItemById( &s_manager.menu, ID_MAKEDIR );
-					UI_Refresh();
-					break;
-			}
-			break;
-
-		case ID_EDIT_RENAME_DIR:
-			switch( nCode )
-			{
-				// attempt to rename file
-				case NOT_EF_CLICKED_OK:
-					pStr = UI_Editfield_GetString( &s_manager.EditRename );
-
-					// build new path
-					strcpy( s_manager.newName, UI_DirView_GetDir(&s_manager.DirViewSrc) );
-					strcat( s_manager.newName, pStr );
-					
-					FileRename( s_manager.oldName, s_manager.newName );
-
-					s_manager.EditRename.generic.flags |= (CFL_INVISIBLE | CFL_INACTIVE);
-					s_manager.Progress.generic.flags &= ~CFL_INVISIBLE;
-
-					UI_SelectItemById( &s_manager.menu, ID_DIRVIEW_SOURCE );
-
-					UI_DirView_Refresh( &s_manager.DirViewSrc );
-					UI_Refresh();
-					break;
-
-				// cancelled
-				case NOT_EF_CLICKED_CANCEL:
-					s_manager.EditRename.generic.flags |= (CFL_INVISIBLE | CFL_INACTIVE);
-
-					// show progress bar
-					s_manager.EditRename.generic.flags &= ~CFL_INACTIVE;
-
-					UI_SelectItemById( &s_manager.menu, ID_RENAME );
-					UI_Refresh();
-					break;
-			}
-			break;
-	}
 }
 
 //

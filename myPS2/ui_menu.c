@@ -42,6 +42,8 @@ uiStatic_t uis;
 
 void UI_Init( void )
 {
+	memset( uis.menus, 0, sizeof(uis.menus) );
+
 	// load background image and fontmap
 	GR_LoadImage( &uis.hBackground, (void*)&img_aqua[0], img_aqua_w, img_aqua_h, img_aqua_psm );
 	GR_LoadImage( &uis.hFontmap, (void*)&font_arial[0], font_arial_w, font_arial_h, font_arial_psm );
@@ -53,11 +55,11 @@ void UI_Init( void )
 	// myPS2 partition couldn't be found, but user has HDD
 	// so ask user if he wants to create one.
 	if( HDD_Available() == HDD_AVAIL_NO_PART ) {
-		UI_SetActiveMenu( MENU_ID_CREATEPART );
+		UI_SetActiveMenu( MENU_CREATEPART );
 	}
 	else {
 		// otherwise just fire up the main menu
-		UI_SetActiveMenu(MENU_ID_MAIN);
+		UI_SetActiveMenu(MENU_MAIN);
 	}
 }
 
@@ -360,16 +362,19 @@ void UI_DrawMenu( menuFramework_t *menu )
 //
 
 void UI_Refresh( void )
-{
+{printf("UI_REFRESH\n");
 	GR_ClearScreen();
 
 	// render background image
 	GR_DrawImage( 0, 0, 640, 480, &uis.hBackground );
 
-	// does active menu have a special draw function?
-	if( uis.active->draw )
-		uis.active->draw();
-	else
+	// if menu is a popup, draw parent menu first
+	if( uis.active->parent )
+		if( uis.active->parent->callback( uis.active->parent, MSG_DRAW, 0, 0 ) == 0 )
+			UI_DrawMenu(uis.active->parent);
+
+	// if callback returns 0, call default draw function
+	if( uis.active->callback( uis.active, MSG_DRAW, 0, 0 ) == 0 )
 		UI_DrawMenu(uis.active);
 
 	// done drawing, swap buffers
@@ -382,42 +387,82 @@ void UI_Refresh( void )
 
 void UI_SetActiveMenu( int menuId )
 {
-	// shouldn't need to init this but just to be sure...
-	menuFramework_t *newMenu = uis.active;
+	if( menuId < 0 || menuId >= MENU_NUM_MENUS )
+		return;
 
 	// give old menu a chance to clean up
-	if( uis.active && uis.active->clean )
-		uis.active->clean();
+	if( uis.active )
+		uis.active->callback( uis.active, MSG_CLOSE, 0, 0 );
 
-	switch(menuId)
+	uis.active = &uis.menus[ menuId ];
+
+	// let new menu set up it's controls
+	switch( menuId )
 	{
-		case MENU_ID_CREATEPART:
-			newMenu = UI_InitCreatePart();
+		case MENU_CREATEPART:
+			UI_InitCreatePart();
 			break;
 
-
-		case MENU_ID_MAIN:
-			newMenu = UI_InitMainMenu();
+		case MENU_MAIN:
+			UI_InitMainMenu();
 			break;
 
-		case MENU_ID_PICVIEW:
-			newMenu = UI_InitPicViewMenu();
+		case MENU_PICVIEW:
+			UI_InitPicViewMenu();
 			break;
 
-		case MENU_ID_MANAGER:
-			newMenu = UI_InitManagerMenu();
+		case MENU_MANAGER:
+			UI_InitManagerMenu();
 			break;
 
-		case MENU_ID_ELFLOADER:
-			newMenu = UI_InitElfLoaderMenu();
+		case MENU_ELFLOADER:
+			UI_InitElfLoaderMenu();
 			break;
 
-		case MENU_ID_OPTIONS:
-			newMenu = UI_InitOptionsMenu();
+		case MENU_OPTIONS:
+			UI_InitOptionsMenu();
+			break;
+
+		case MENU_POPUP_THUMB:
+			UI_InitPopupThumb();
 			break;
 	}
 
-	uis.active = newMenu;
+	// refresh everything
+	UI_Refresh();
+}
+
+//
+// UI_PopupOpen - Opens up a popup menu
+//
+
+void UI_PopupOpen( int popupId, menuFramework_t *parent )
+{
+	if( popupId < 0 || popupId >= MENU_NUM_MENUS )
+		return;
+
+	if( !parent )
+		return;
+
+	uis.menus[ popupId ].parent = parent;
+
+	// since parent isn't really closed, it must NOT call
+	// it's clean stuff yet. Just set uis.active to NULL
+	// it will be re-initialized by UI_SetActiveMenu anyway
+	uis.active = NULL;
+
+	UI_SetActiveMenu( popupId );	// calls UI_Refresh already
+}
+
+//
+// UI_PopupClose - Closes a popup and returns control to its parent
+//
+
+void UI_PopupClose( menuFramework_t *popup )
+{
+	popup->callback( popup, MSG_CLOSE, 0, 0 );
+
+	uis.active = popup->parent;
 	UI_Refresh();
 }
 
@@ -528,10 +573,7 @@ void UI_DefaultInputHandler( menuFramework_t *menu, u32 buttons )
 		GP_SetPressMode(0);
 	}
 	else if( buttons & PAD_CROSS )
-	{
-		if( item->callback )
-			item->callback( item, NOT_CLICKED );
-	}
+		item->parent->callback( item->parent, MSG_CONTROL, NOT_CLICKED, item->id );
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -681,9 +723,7 @@ int UI_InputDirViewControl( menuDirView_t *pDirView, menuFramework_t *menu, u32 
 					UI_InitDirViewControl( pDirView );
 					UI_Refresh();
 
-					if( pDirView->generic.callback )
-						pDirView->generic.callback( pDirView, NOT_DV_CHANGED_DIR );
-
+					pDirView->generic.parent->callback( pDirView->generic.parent, MSG_CONTROL, NOT_DV_CHANGED_DIR, pDirView->generic.id );
 					return 1;
 				}
 
@@ -701,16 +741,12 @@ int UI_InputDirViewControl( menuDirView_t *pDirView, menuFramework_t *menu, u32 
 			UI_DirView_SetDir( pDirView, pDirView->absPath );
 			UI_Refresh();
 
-			if( pDirView->generic.callback )
-				pDirView->generic.callback( pDirView, NOT_DV_CHANGED_DIR );
-
+			pDirView->generic.parent->callback( pDirView->generic.parent, MSG_CONTROL, NOT_DV_CHANGED_DIR, pDirView->generic.id );
 			return 1;
 		}
 		else
 		{
-			if( pDirView->generic.callback )
-				pDirView->generic.callback( pDirView, NOT_DV_CLICKED_ENTRY );
-				
+			pDirView->generic.parent->callback( pDirView->generic.parent, MSG_CONTROL, NOT_DV_CLICKED_ENTRY, pDirView->generic.id );				
 			return 1;
 		}
 	}
@@ -725,17 +761,13 @@ int UI_InputDirViewControl( menuDirView_t *pDirView, menuFramework_t *menu, u32 
 		if( pDirView->pEntries[ pDirView->selEntry ].flags & FLAG_MARKED )
 		{
 			pDirView->pEntries[ pDirView->selEntry ].flags &= ~FLAG_MARKED;
-
-			if( pDirView->generic.callback )
-				pDirView->generic.callback( pDirView, NOT_DV_UNMARKED_ENTRY );
+			pDirView->generic.parent->callback( pDirView->generic.parent, MSG_CONTROL, NOT_DV_UNMARKED_ENTRY, pDirView->generic.id );
 		}
 		else
 		{
 			// mark entry
 			pDirView->pEntries[ pDirView->selEntry ].flags |= FLAG_MARKED;
-
-			if( pDirView->generic.callback )
-				pDirView->generic.callback( pDirView, NOT_DV_MARKED_ENTRY );
+			pDirView->generic.parent->callback( pDirView->generic.parent, MSG_CONTROL, NOT_DV_MARKED_ENTRY, pDirView->generic.id );
 		}
 
 		return 1;
@@ -945,11 +977,9 @@ void UI_DirView_SetCursor( menuDirView_t *pDirView, int nCursor )
 	oldEntry = pDirView->selEntry;
 	pDirView->selEntry = nCursor;
 
-	// notify parent of selection change
-	if( oldEntry != pDirView->selEntry ) {
-		if( pDirView->generic.callback )
-			pDirView->generic.callback( pDirView, NOT_DV_SEL_CHANGED );
-	}
+	// notify of selection change
+	if( oldEntry != pDirView->selEntry ) 
+		pDirView->generic.parent->callback( pDirView->generic.parent, MSG_CONTROL, NOT_DV_SEL_CHANGED, pDirView->generic.id );
 }
 
 //
@@ -1315,17 +1345,13 @@ int UI_InputEditControl( menuEditfield_t *pEditfield, menuFramework_t *menu, u32
 			else if( pEditfield->chrIndex == BtnCancel )
 			{
 				// inform parent
-				if( pEditfield->generic.callback )
-					pEditfield->generic.callback( pEditfield, NOT_EF_CLICKED_CANCEL );
-
+				pEditfield->generic.parent->callback( pEditfield->generic.parent, MSG_CONTROL, NOT_EF_CLICKED_CANCEL, pEditfield->generic.id );
 				return 0;
 			}
 			else if( pEditfield->chrIndex == BtnOk )
 			{
 				// inform parent
-				if( pEditfield->generic.callback )
-					pEditfield->generic.callback( pEditfield, NOT_EF_CLICKED_OK );
-
+				pEditfield->generic.parent->callback( pEditfield->generic.parent, MSG_CONTROL, NOT_EF_CLICKED_OK, pEditfield->generic.id );
 				return 0;
 			}
 		}
@@ -1622,9 +1648,7 @@ int UI_InputSliderControl( menuSlider_t *pSlider, menuFramework_t *menu, u32 but
 			UI_Slider_SetPos( pSlider, pSlider->mins );
 			UI_Refresh();
 
-			if( pSlider->generic.callback )
-				pSlider->generic.callback( pSlider, NOT_SL_POS_CHANGED );
-
+			pSlider->generic.parent->callback( pSlider->generic.parent, MSG_CONTROL, NOT_SL_POS_CHANGED, pSlider->generic.id );
 			return 1;
 		}
 	}
@@ -1634,9 +1658,7 @@ int UI_InputSliderControl( menuSlider_t *pSlider, menuFramework_t *menu, u32 but
 			UI_Slider_SetPos( pSlider, pSlider->maxs );
 			UI_Refresh();
 
-			if( pSlider->generic.callback )
-				pSlider->generic.callback( pSlider, NOT_SL_POS_CHANGED );
-
+			pSlider->generic.parent->callback( pSlider->generic.parent, MSG_CONTROL, NOT_SL_POS_CHANGED, pSlider->generic.id );
 			return 1;
 		}
 	}
@@ -1663,8 +1685,7 @@ int UI_InputSliderControl( menuSlider_t *pSlider, menuFramework_t *menu, u32 but
 				UI_Refresh();
 
 				// inform parent
-				if( pSlider->generic.callback )
-					pSlider->generic.callback( pSlider, NOT_SL_POS_CHANGED );
+				pSlider->generic.parent->callback( pSlider->generic.parent, MSG_CONTROL, NOT_SL_POS_CHANGED, pSlider->generic.id );
 			}
 
 			return 1;
@@ -1679,8 +1700,7 @@ int UI_InputSliderControl( menuSlider_t *pSlider, menuFramework_t *menu, u32 but
 				UI_Refresh();
 
 				// inform parent
-				if( pSlider->generic.callback )
-					pSlider->generic.callback( pSlider, NOT_SL_POS_CHANGED );
+				pSlider->generic.parent->callback( pSlider->generic.parent, MSG_CONTROL, NOT_SL_POS_CHANGED, pSlider->generic.id );
 			}
 
 			return 1;
@@ -1709,8 +1729,7 @@ int UI_InputSliderControl( menuSlider_t *pSlider, menuFramework_t *menu, u32 but
 				UI_Refresh();
 
 				// inform parent
-				if( pSlider->generic.callback )
-					pSlider->generic.callback( pSlider, NOT_SL_POS_CHANGED );
+				pSlider->generic.parent->callback( pSlider->generic.parent, MSG_CONTROL, NOT_SL_POS_CHANGED, pSlider->generic.id );
 			}
 
 			return 1;
@@ -1725,8 +1744,7 @@ int UI_InputSliderControl( menuSlider_t *pSlider, menuFramework_t *menu, u32 but
 				UI_Refresh();
 
 				// inform parent
-				if( pSlider->generic.callback )
-					pSlider->generic.callback( pSlider, NOT_SL_POS_CHANGED );
+				pSlider->generic.parent->callback( pSlider->generic.parent, MSG_CONTROL, NOT_SL_POS_CHANGED, pSlider->generic.id );
 			}
 
 			return 1;

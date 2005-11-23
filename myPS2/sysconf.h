@@ -38,6 +38,10 @@ typedef struct {
 	int		scr_adjust_y;
 	int		scr_mode;
 
+	// Thumbnail Caching
+	int		tbnCaching;
+	char	tbnCachePath[256];
+
 } sysConf_t;
 
 // so it can be accessed from everywhere

@@ -40,7 +40,7 @@ MA  02110-1301, USA.
 #define ID_EDITFIELD	5
 
 typedef struct {
-	menuFramework_t		menu;
+	menuFramework_t		*menu;
 
 	menuText_t			SelectElf;
 	menuText_t			EditInfo;
@@ -62,21 +62,21 @@ static uiElfLoaderMenu_t s_elfloader;
 // UI_InitElfLoaderMenu - Initializes ELF loader menu controls
 //
 
-menuFramework_t *UI_InitElfLoaderMenu( void )
+void UI_InitElfLoaderMenu( void )
 {
-	s_elfloader.menu.clean	= UI_ElfLoaderCleanup;
-	s_elfloader.menu.draw	= UI_ElfLoaderDraw;
-	s_elfloader.menu.input	= NULL;
+	s_elfloader.menu						= &uis.menus[ MENU_ELFLOADER ];
 
-	s_elfloader.menu.numItems		= 0;
-	s_elfloader.menu.selectedItem	= 0;
+	s_elfloader.menu->callback				= UI_ElfLoaderCallback;
+	s_elfloader.menu->input					= NULL;
+
+	s_elfloader.menu->numItems				= 0;
+	s_elfloader.menu->selectedItem			= 0;
 
 	s_elfloader.SelectElf.generic.type		= MENU_CONTROL_TEXT;
 	s_elfloader.SelectElf.generic.flags		= 0;
 	s_elfloader.SelectElf.generic.x			= 35;
 	s_elfloader.SelectElf.generic.y			= 70;
 	s_elfloader.SelectElf.generic.id		= ID_SELECTELF;
-	s_elfloader.SelectElf.generic.callback	= UI_EventElfLoaderMenu;
 	s_elfloader.SelectElf.text				= "Select ELF";
 	s_elfloader.SelectElf.size				= GR_FONT_SMALL;
 	s_elfloader.SelectElf.color				= RGB(255, 255, 255);
@@ -86,7 +86,6 @@ menuFramework_t *UI_InitElfLoaderMenu( void )
 	s_elfloader.EditInfo.generic.x			= 35;
 	s_elfloader.EditInfo.generic.y			= 90;
 	s_elfloader.EditInfo.generic.id			= ID_EDITINFO;
-	s_elfloader.EditInfo.generic.callback	= UI_EventElfLoaderMenu;
 	s_elfloader.EditInfo.text				= "Edit Info";
 	s_elfloader.EditInfo.size				= GR_FONT_SMALL;
 	s_elfloader.EditInfo.color				= RGB(255, 255, 255);
@@ -96,7 +95,6 @@ menuFramework_t *UI_InitElfLoaderMenu( void )
 	s_elfloader.GoBack.generic.x			= 35;
 	s_elfloader.GoBack.generic.y			= 120;
 	s_elfloader.GoBack.generic.id			= ID_GOBACK;
-	s_elfloader.GoBack.generic.callback		= UI_EventElfLoaderMenu;
 	s_elfloader.GoBack.text					= "Go Back";
 	s_elfloader.GoBack.size					= GR_FONT_SMALL;
 	s_elfloader.GoBack.color				= RGB(255, 255, 255);
@@ -106,7 +104,6 @@ menuFramework_t *UI_InitElfLoaderMenu( void )
 	s_elfloader.DirView.generic.x			= 200;
 	s_elfloader.DirView.generic.y			= 40;
 	s_elfloader.DirView.generic.id			= ID_DIRVIEW;
-	s_elfloader.DirView.generic.callback	= UI_EventElfLoaderMenu;
 	s_elfloader.DirView.width				= 400;
 	s_elfloader.DirView.height				= 200;
 	s_elfloader.DirView.filter				= "ELF";
@@ -117,36 +114,163 @@ menuFramework_t *UI_InitElfLoaderMenu( void )
 	s_elfloader.EditField.generic.x			= 200;
 	s_elfloader.EditField.generic.y			= 275;
 	s_elfloader.EditField.generic.id		= ID_EDITFIELD;
-	s_elfloader.EditField.generic.callback	= UI_EventElfLoaderMenu;
 	s_elfloader.EditField.width				= 400;
 	s_elfloader.EditField.height			= 200;
 	s_elfloader.EditField.color				= RGB(81, 112, 164);
 
 	// add items to menu container
-	UI_AddItemToMenu( &s_elfloader.menu, &s_elfloader.SelectElf );
-	UI_AddItemToMenu( &s_elfloader.menu, &s_elfloader.EditInfo );
-	UI_AddItemToMenu( &s_elfloader.menu, &s_elfloader.GoBack );
-	UI_AddItemToMenu( &s_elfloader.menu, &s_elfloader.DirView );
-	UI_AddItemToMenu( &s_elfloader.menu, &s_elfloader.EditField );
+	UI_AddItemToMenu( s_elfloader.menu, &s_elfloader.SelectElf );
+	UI_AddItemToMenu( s_elfloader.menu, &s_elfloader.EditInfo );
+	UI_AddItemToMenu( s_elfloader.menu, &s_elfloader.GoBack );
+	UI_AddItemToMenu( s_elfloader.menu, &s_elfloader.DirView );
+	UI_AddItemToMenu( s_elfloader.menu, &s_elfloader.EditField );
 
 	// load text file with program descriptions
 	s_elfloader.numEntries = UI_LoadDescriptions( s_elfloader.descTable, MAX_DESC_ENTRIES );
-
-	return &s_elfloader.menu;
 }
 
 //
-// UI_ElfLoaderCleanup - Perform clean up work
+// UI_ElfLoaderCallback - Elf Loader Callback
 //
 
-void UI_ElfLoaderCleanup( void )
+int UI_ElfLoaderCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long sParam )
 {
-	// clear up dirview control
-	UI_DirView_Clear( &s_elfloader.DirView );
+	int					nEnable;
+	const fileInfo_t	*pFileInfo;
+	const char			*pDir, *pStr;
+	char				strBuf[256];
+	const descEntry_t	*pDesc;
+
+	switch( nMsg )
+	{
+		case MSG_DRAW:
+			UI_ElfLoaderDraw();
+			return 1;
+
+		case MSG_CONTROL:
+			switch( sParam )
+			{
+				case ID_DIRVIEW:
+					switch( fParam )
+					{
+						case NOT_DV_CHANGED_DIR:
+						case NOT_DV_MARKED_ENTRY:
+						case NOT_DV_UNMARKED_ENTRY:
+							nEnable = 1;
+
+							if( UI_DirView_MarkedCount( &s_elfloader.DirView ) != 1 )
+								nEnable = 0;
+					
+							pFileInfo = UI_DirView_GetMarked( &s_elfloader.DirView, 0 );
+
+							if( !CmpFileExtension( pFileInfo->name, "ELF" ) )
+								nEnable = 0;
+
+							if( (nEnable) && (s_elfloader.EditInfo.generic.flags & CFL_INACTIVE) )
+							{
+								s_elfloader.EditInfo.generic.flags &= ~CFL_INACTIVE;
+								UI_Refresh();
+							}
+							else if( !(nEnable) && !(s_elfloader.EditInfo.generic.flags & CFL_INACTIVE) )
+							{
+								s_elfloader.EditInfo.generic.flags |= CFL_INACTIVE;
+
+								// also make sure editfield is disabled
+								s_elfloader.EditField.generic.flags |= (CFL_INACTIVE | CFL_INVISIBLE);
+
+								UI_Refresh();
+							}
+							return 1;
+
+						// user clicked an ELF file, attempt to run it
+						case NOT_DV_CLICKED_ENTRY:
+							// build path
+							pDir		= UI_DirView_GetDir( &s_elfloader.DirView );
+							pFileInfo	= UI_DirView_GetSelected( &s_elfloader.DirView );
+
+							strcpy( strBuf, pDir );
+							strcat( strBuf, pFileInfo->name );
+
+							// good bye
+							if( CheckELFHeader( strBuf ) ) {
+								RunLoaderELF( strBuf );
+							}
+							else {
+#ifdef _DEBUG
+								printf("%s is not a valid ELF file!\n", strBuf );
+#endif
+							}
+							return 1;
+					}
+					return 1;
+
+				case ID_SELECTELF:
+					UI_SelectItemById( s_elfloader.menu, ID_DIRVIEW );
+					UI_Refresh();
+					return 1;
+
+				case ID_EDITINFO:
+					// enable editfield control
+					s_elfloader.EditField.generic.flags &= ~(CFL_INVISIBLE | CFL_INACTIVE);
+
+					// grab description
+					pDir		= UI_DirView_GetDir( &s_elfloader.DirView );
+					pFileInfo	= UI_DirView_GetMarked( &s_elfloader.DirView, 0 );
+
+					strcpy( strBuf, pDir );
+					strcat( strBuf, pFileInfo->name );
+
+					if( (pDesc = UI_GetDescByName( strBuf )) == NULL )
+						pStr = "Not available";
+					else
+						pStr = pDesc->fileDesc;
+
+					UI_Editfield_SetString( &s_elfloader.EditField, pStr );
+
+					UI_SelectItemById( s_elfloader.menu, ID_EDITFIELD );
+					UI_Refresh();
+					break;
+
+				case ID_GOBACK:
+					UI_SetActiveMenu(MENU_MAIN);
+					break;
+
+				case ID_EDITFIELD:
+					switch( fParam )
+					{
+						case NOT_EF_CLICKED_CANCEL:
+							s_elfloader.EditField.generic.flags |= (CFL_INACTIVE | CFL_INVISIBLE);
+					
+							UI_SelectItemById( s_elfloader.menu, ID_DIRVIEW );
+							UI_Refresh();
+							return 1;
+
+						case NOT_EF_CLICKED_OK:
+							s_elfloader.EditField.generic.flags |= (CFL_INACTIVE | CFL_INVISIBLE);
+
+							pDir		= UI_DirView_GetDir( &s_elfloader.DirView );
+							pFileInfo	= UI_DirView_GetMarked( &s_elfloader.DirView, 0 );
+
+							strcpy( strBuf, pDir );
+							strcat( strBuf, pFileInfo->name );
+
+							// add the new description
+							pStr = UI_Editfield_GetString( &s_elfloader.EditField );
+							UI_AddDescription( strBuf, pStr );
+
+							UI_SelectItemById( s_elfloader.menu, ID_DIRVIEW );
+							UI_Refresh();
+							return 1;
+					}
+					return 1;
+			}
+			break;
+	}
+	return 0;
 }
 
 //
-// UI_ElfLoaderDraw - Custom draw function
+// UI_ElfLoaderDraw
 //
 
 void UI_ElfLoaderDraw( void )
@@ -168,7 +292,7 @@ void UI_ElfLoaderDraw( void )
 	GR_SetBlendMode( GR_BLEND_NONE );
 
 	// draw controls
-	UI_DrawMenu( &s_elfloader.menu );
+	UI_DrawMenu( s_elfloader.menu );
 
 	// draw static text
 	GR_SetFontColor( RGB(255, 255, 255) );
@@ -220,150 +344,6 @@ void UI_ElfLoaderDraw( void )
 		pElfDesc = "Not available";
 
 	GR_DrawTextExt( 210, 360, pElfDesc, GR_FONT_SMALL );
-}
-
-//
-// UI_EventElfLoaderMenu
-//
-
-void UI_EventElfLoaderMenu( void *pItem, int nCode )
-{
-	int					id;
-	int					nEnable;
-	const fileInfo_t	*pFileInfo;
-	const char			*pDir, *pStr;
-	char				strBuf[256];
-	const descEntry_t	*pDesc;
-
-	if( !pItem )
-		return;
-
-	id = ((menuCommon_t*)pItem)->id;
-
-	// need to enable "Edit Info" button?
-	if( id == ID_DIRVIEW ) {
-		nEnable = 1;
-
-		if( !MC_Available(0) )
-			nEnable = 0;
-
-		if( UI_DirView_MarkedCount( &s_elfloader.DirView ) != 1 )
-			nEnable = 0;
-
-		pFileInfo = UI_DirView_GetMarked( &s_elfloader.DirView, 0 );
-
-		if( !CmpFileExtension( pFileInfo->name, "ELF" ) )
-			nEnable = 0;
-
-		if( nEnable ) {
-			s_elfloader.EditInfo.generic.flags &= ~CFL_INACTIVE;
-		}
-		else {
-			s_elfloader.EditInfo.generic.flags |= CFL_INACTIVE;
-
-			// also make sure editfield is disabled
-			s_elfloader.EditField.generic.flags |= (CFL_INACTIVE | CFL_INVISIBLE);
-		}
-
-		UI_Refresh();
-	}
-
-	switch( id )
-	{
-		case ID_SELECTELF:
-			UI_SelectItemById( &s_elfloader.menu, ID_DIRVIEW );
-			UI_Refresh();
-			break;
-
-		case ID_EDITINFO:
-			// enable editfield control
-			s_elfloader.EditField.generic.flags &= ~(CFL_INVISIBLE | CFL_INACTIVE);
-
-			// grab description
-			pDir		= UI_DirView_GetDir( &s_elfloader.DirView );
-			pFileInfo	= UI_DirView_GetMarked( &s_elfloader.DirView, 0 );
-
-			strcpy( strBuf, pDir );
-			strcat( strBuf, pFileInfo->name );
-
-			if( (pDesc = UI_GetDescByName( strBuf )) == NULL )
-				pStr = "Not available";
-			else
-				pStr = pDesc->fileDesc;
-
-			UI_Editfield_SetString( &s_elfloader.EditField, pStr );
-
-			UI_SelectItemById( &s_elfloader.menu, ID_EDITFIELD );
-			UI_Refresh();
-			break;
-
-		case ID_GOBACK:
-			UI_SetActiveMenu(MENU_ID_MAIN);
-			break;
-
-		case ID_DIRVIEW:
-			switch( nCode )
-			{
-				// update elf information stuff
-				case NOT_DV_SEL_CHANGED:
-					UI_Refresh();
-					break;
-
-				// user clicked an ELF file, attempt to run it
-				case NOT_DV_CLICKED_ENTRY:
-
-					// build path
-					pDir		= UI_DirView_GetDir( &s_elfloader.DirView );
-					pFileInfo	= UI_DirView_GetSelected( &s_elfloader.DirView );
-
-					strcpy( strBuf, pDir );
-					strcat( strBuf, pFileInfo->name );
-
-					// good bye
-					if( CheckELFHeader( strBuf ) ) {
-						RunLoaderELF( strBuf );
-					}
-					else {
-#ifdef _DEBUG
-						printf("%s is not a valid ELF file!\n", strBuf );
-#endif
-					}
-
-					break;
-			}
-			break;
-
-		case ID_EDITFIELD:
-			switch( nCode )
-			{
-				case NOT_EF_CLICKED_CANCEL:
-					s_elfloader.EditField.generic.flags |= (CFL_INACTIVE | CFL_INVISIBLE);
-					
-					UI_SelectItemById( &s_elfloader.menu, ID_DIRVIEW );
-					UI_Refresh();
-					break;
-
-				case NOT_EF_CLICKED_OK:
-					s_elfloader.EditField.generic.flags |= (CFL_INACTIVE | CFL_INVISIBLE);
-
-					pDir		= UI_DirView_GetDir( &s_elfloader.DirView );
-					pFileInfo	= UI_DirView_GetMarked( &s_elfloader.DirView, 0 );
-
-					strcpy( strBuf, pDir );
-					strcat( strBuf, pFileInfo->name );
-
-					printf( "%s\n", strBuf );
-
-					// add the new description
-					pStr = UI_Editfield_GetString( &s_elfloader.EditField );
-					UI_AddDescription( strBuf, pStr );
-
-					UI_SelectItemById( &s_elfloader.menu, ID_DIRVIEW );
-					UI_Refresh();
-					break;
-			}
-			break;
-	}
 }
 
 //

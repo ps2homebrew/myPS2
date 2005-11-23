@@ -117,6 +117,12 @@ int SysConfLoad( void )
 		else if( !strcmp( strToken, "scr_mode" ) ) {
 			sysConf.scr_mode = atoi( strValue );
 		}
+		else if( !strcmp( strToken, "tbnCaching" ) ) {
+			sysConf.tbnCaching = atoi( strValue );
+		}
+		else if( !strcmp( strToken, "tbnCachePath" ) ) {
+			strcpy( sysConf.tbnCachePath, strValue );
+		}
 		else {
 #ifdef _DEBUG
 			printf("SysConfLoad : Warning : Encountered unknown token\n");
@@ -166,6 +172,13 @@ int SysConfSave( void )
 	sprintf( strLine, "scr_mode=%i\r\n", sysConf.scr_mode );
 	FileWrite( fHandle, strLine, strlen(strLine) );
 
+	// thumbnail caching
+	sprintf( strLine, "tbnCaching=%i\r\n", sysConf.tbnCaching );
+	FileWrite( fHandle, strLine, strlen(strLine) );
+
+	sprintf( strLine, "tbnCachePath=%s\r\n", sysConf.tbnCachePath );
+	FileWrite( fHandle, strLine, strlen(strLine) );
+
 	FileClose(fHandle);
 	return 1;
 }
@@ -181,4 +194,8 @@ void SysConfDefault( void )
 	sysConf.scr_adjust_x	= 0;
 	sysConf.scr_adjust_y	= 0;
 	sysConf.scr_mode		= GR_MODE_AUTO;
+	sysConf.tbnCaching		= 0;
+
+	strcpy( sysConf.tbnCachePath, "pfs0:/SYS/THUMBCACHE/" );
+
 }

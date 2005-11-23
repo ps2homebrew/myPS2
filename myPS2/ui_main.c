@@ -38,7 +38,7 @@ MA  02110-1301, USA.
 #define ID_OPTIONS			4
 
 typedef struct {
-	menuFramework_t	menu;
+	menuFramework_t	*menu;
 
 	menuText_t		PicViewer;
 	menuText_t		Manager;
@@ -54,22 +54,22 @@ static uiMainMenu_t s_main;
 // UI_InitMainMenu - Initializes main menu controls.
 //
 
-menuFramework_t *UI_InitMainMenu( void )
+void UI_InitMainMenu( void )
 {
-	s_main.menu.draw				= UI_MainDraw;
-	s_main.menu.input				= NULL;
-	s_main.menu.clean				= UI_MainCleanup;
-	s_main.menu.numItems			= 0;
+	s_main.menu							= &uis.menus[ MENU_MAIN ];
+
+	s_main.menu->callback				= UI_MainCallback;
+	s_main.menu->input					= NULL;
+	s_main.menu->numItems				= 0;
 
 	// picture view is selected by default
-	s_main.menu.selectedItem		= 0;
+	s_main.menu->selectedItem			= 0;
 
 	s_main.PicViewer.generic.type		= MENU_CONTROL_TEXT;
 	s_main.PicViewer.generic.flags		= 0;
 	s_main.PicViewer.generic.x			= 35;
 	s_main.PicViewer.generic.y			= 70;
 	s_main.PicViewer.generic.id			= ID_PICTUREVIEWER;
-	s_main.PicViewer.generic.callback	= UI_EventMainMenu;
 	s_main.PicViewer.text				= "My Pictures";
 	s_main.PicViewer.size				= GR_FONT_SMALL;
 	s_main.PicViewer.color				= RGB(255, 255, 255);
@@ -79,7 +79,6 @@ menuFramework_t *UI_InitMainMenu( void )
 	s_main.Manager.generic.x			= 35;
 	s_main.Manager.generic.y			= 90;
 	s_main.Manager.generic.id			= ID_MANAGER;
-	s_main.Manager.generic.callback		= UI_EventMainMenu;
 	s_main.Manager.text					= "My Files";
 	s_main.Manager.size					= GR_FONT_SMALL;
 	s_main.Manager.color				= RGB(255, 255, 255);
@@ -89,7 +88,6 @@ menuFramework_t *UI_InitMainMenu( void )
 	s_main.ElfLoader.generic.x			= 35;
 	s_main.ElfLoader.generic.y			= 110;
 	s_main.ElfLoader.generic.id			= ID_ELFLOADER;
-	s_main.ElfLoader.generic.callback	= UI_EventMainMenu;
 	s_main.ElfLoader.text				= "My Programs";
 	s_main.ElfLoader.size				= GR_FONT_SMALL;
 	s_main.ElfLoader.color				= RGB(255, 255, 255);
@@ -99,31 +97,60 @@ menuFramework_t *UI_InitMainMenu( void )
 	s_main.Options.generic.x			= 35;
 	s_main.Options.generic.y			= 140;
 	s_main.Options.generic.id			= ID_OPTIONS;
-	s_main.Options.generic.callback		= UI_EventMainMenu;
 	s_main.Options.text					= "Options";
 	s_main.Options.size					= GR_FONT_SMALL;
 	s_main.Options.color				= RGB(255, 255, 255);
 
 	// add items to menu container
-	UI_AddItemToMenu( &s_main.menu, &s_main.PicViewer );
-	UI_AddItemToMenu( &s_main.menu, &s_main.Manager );
-	UI_AddItemToMenu( &s_main.menu, &s_main.ElfLoader );
-	UI_AddItemToMenu( &s_main.menu, &s_main.Options );
+	UI_AddItemToMenu( s_main.menu, &s_main.PicViewer );
+	UI_AddItemToMenu( s_main.menu, &s_main.Manager );
+	UI_AddItemToMenu( s_main.menu, &s_main.ElfLoader );
+	UI_AddItemToMenu( s_main.menu, &s_main.Options );
 
 	// precache images
 	GR_LoadImage( &s_main.hImgLogo, (void*)&img_logo[0], img_logo_w, img_logo_h, img_logo_psm );
-
-	return &s_main.menu;
 }
 
 //
-// UI_MainCleanup - Clean up allocated memory
+// UI_MainCallback - Main Menu Callback
 //
 
-void UI_MainCleanup( void )
+int UI_MainCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long sParam )
 {
-	// reset texture buffer pointer
-	GR_SetTextureBuffer( s_main.hImgLogo.address );
+	switch( nMsg )
+	{
+		case MSG_CONTROL:
+			switch( sParam )
+			{
+				case ID_PICTUREVIEWER:
+					UI_SetActiveMenu(MENU_PICVIEW);
+					return 1;
+
+				case ID_MANAGER:
+					UI_SetActiveMenu(MENU_MANAGER);
+					return 1;
+
+				case ID_ELFLOADER:
+					UI_SetActiveMenu(MENU_ELFLOADER);
+					return 1;
+
+				case ID_OPTIONS:
+					UI_SetActiveMenu(MENU_OPTIONS);
+					return 1;
+			}
+			break;
+
+		case MSG_DRAW:
+			UI_MainDraw();
+			return 1;
+
+		// reset texture buffer pointer
+		case MSG_CLOSE:
+			GR_SetTextureBuffer( s_main.hImgLogo.address );
+			return 1;
+	}
+
+	return 0;
 }
 
 //
@@ -143,7 +170,7 @@ void UI_MainDraw( void )
 	GR_SetBlendMode( GR_BLEND_NONE );
 
 	// draw standard controls
-	UI_DrawMenu( &s_main.menu );
+	UI_DrawMenu( s_main.menu );
 
 	// draw myPS2 logo
 	GR_SetBlendMode( GR_BLEND_SRC_ALPHA );
@@ -167,7 +194,7 @@ void UI_MainDraw( void )
 	GR_DrawTextExt( 210, 230 + offset, "Newest version can be found at", GR_FONT_SMALL );
 
 	GR_SetFontColor( RGB(0,255,0) );
-	GR_DrawTextExt( 210, 245 + offset, "http://home.arcor.de/ntba2/", GR_FONT_SMALL );
+	GR_DrawTextExt( 210, 245 + offset, "http://www.ntba2.de/", GR_FONT_SMALL );
 	GR_SetFontColor( RGB(255,255,255) );
 
 	GR_DrawTextExt( 210, 270 + offset, "Thanks to", GR_FONT_SMALL );
@@ -176,37 +203,4 @@ void UI_MainDraw( void )
 	GR_DrawTextExt( 220, 320 + offset, "- Ivaylo Byalkov", GR_FONT_SMALL );
 	GR_DrawTextExt( 220, 335 + offset, "- Pixel", GR_FONT_SMALL );
 	GR_DrawTextExt( 220, 350 + offset, "- Ole", GR_FONT_SMALL );
-}
-
-//
-// UI_EventMainMenu - Callback
-//
-
-void UI_EventMainMenu( void *pItem, int nCode )
-{
-	if(!pItem)
-		return;
-
-	switch( ((menuCommon_t*)pItem)->id )
-	{
-		// open picture viewer menu
-		case ID_PICTUREVIEWER:
-			UI_SetActiveMenu(MENU_ID_PICVIEW);
-			break;
-
-		// open file manager menu
-		case ID_MANAGER:
-			UI_SetActiveMenu(MENU_ID_MANAGER);
-			break;
-
-		// open elf loader menu
-		case ID_ELFLOADER:
-			UI_SetActiveMenu(MENU_ID_ELFLOADER);
-			break;
-
-		// open options menu
-		case ID_OPTIONS:
-			UI_SetActiveMenu(MENU_ID_OPTIONS);
-			break;
-	}
 }

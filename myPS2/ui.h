@@ -32,7 +32,7 @@ MA  02110-1301, USA.
 #ifndef _UI_H
 #define _UI_H
 
-#define MYPS2_VERSION	"0.2" 
+#define MYPS2_VERSION	"0.3" 
 
 #include <gr.h>
 #include <libpad.h>
@@ -78,32 +78,51 @@ extern u32 img_logo_psm;
 
 #define MENU_MAX_ITEMS	64
 
-typedef struct {
+typedef struct menuFramework_s menuFramework_t;
+
+struct menuFramework_s {
 	int	numItems;						// Number of items in menu
 	void *items[MENU_MAX_ITEMS];		// Items
 	int selectedItem;					// Item that currently has the focus
 
-	void (*draw)( void );				// optional draw function
+	int (*callback)( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long sParam );
 	void (*input)( u32 buttons );		// optional input handler
-	void (*clean)( void );				// optional clean up function called on close
-} menuFramework_t;
+
+	menuFramework_t	*parent;			// valid for popup menus, otherwise NULL
+};
+
+typedef enum {
+	MSG_CONTROL,
+	MSG_DRAW,
+	MSG_CLOSE,
+	MSG_DIALOGEXIT
+} callbackMsg_t;
+
+
+enum {
+	MENU_CREATEPART,
+
+	MENU_MAIN,
+	MENU_PICVIEW,
+	MENU_MANAGER,
+	MENU_ELFLOADER,
+	MENU_OPTIONS,
+
+	MENU_POPUP_THUMB,		// popup displayed while thumbnails are generated
+
+	MENU_NUM_MENUS
+};
 
 typedef struct {
 	IMG_HANDLE		hBackground;
 	IMG_HANDLE		hFontmap;
 	u32				*fontCoords;
 	menuFramework_t	*active;
+
+	menuFramework_t	menus[MENU_NUM_MENUS];
 } uiStatic_t;
 
-enum {
-	MENU_ID_CREATEPART,
-
-	MENU_ID_MAIN,
-	MENU_ID_PICVIEW,
-	MENU_ID_MANAGER,
-	MENU_ID_ELFLOADER,
-	MENU_ID_OPTIONS
-};
+extern uiStatic_t uis;
 
 //
 // Menu Item Definitions
@@ -118,7 +137,6 @@ typedef struct {
 	int				flags;
 	int				id;
 	menuFramework_t *parent;
-	void			(*callback)( void* pItem, int nCode );
 } menuCommon_t;
 
 typedef struct {
@@ -267,6 +285,8 @@ void UI_DrawBitmapControl( menuBitmap_t *b );
 void UI_DrawMenu( menuFramework_t *menu );
 void UI_Refresh( void );
 void UI_SetActiveMenu( int menuId );
+void UI_PopupOpen( int popupId, menuFramework_t *parent );
+void UI_PopupClose( menuFramework_t *popup );
 void UI_GamepadInput( u32 buttons );
 void UI_DefaultInputHandler( menuFramework_t *menu, u32 buttons );
 
@@ -311,19 +331,25 @@ u64 UI_Slider_GetStepSize( const menuSlider_t *pSlider );
 // ui_main.c
 //
 
-menuFramework_t *UI_InitMainMenu( void );
-void UI_MainCleanup( void );
+void UI_InitMainMenu( void );
+int UI_MainCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long sParam );
 void UI_MainDraw( void );
-void UI_EventMainMenu( void *pItem, int nCode );
 
 //
 // ui_picview.c
 //
 
-menuFramework_t *UI_InitPicViewMenu( void );
-void UI_PicViewCleanup( void );
+typedef struct {
+	u8		magic[2];		// should be 'TC'
+	u32		size;			// stores the size of the original image thumbnail was
+							// generated from.
+	u8		width;			// width of thumbnail
+	u8		height;			// height of thumbnail
+} TBN_HEADER;
+
+void UI_InitPicViewMenu( void );
+int UI_PicViewCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long lParam );
 void UI_PicViewDraw( void );
-void UI_EventPicViewMenu( void *pItem, int nCode );
 void UI_UpdateImageGrid( void );
 void UI_PicViewSetDir( const char *path );
 void UI_PicViewPrevPage( void );
@@ -332,6 +358,12 @@ int UI_SortByName( const void *a, const void *b );
 int UI_SortBySize( const void *a, const void *b );
 int UI_SortByType( const void *a, const void *b );
 int UI_CreateThumbnail( const fileInfo_t *pFile, const char *pCurrentDir, IMG_HANDLE *pHandle );
+int UI_TbnCacheLoad( const fileInfo_t *pFile, const char *pCurrentDir, IMG_HANDLE *pHandle );
+int UI_TbnCacheSave( const fileInfo_t *pFile, const char *pCurrentDir, int nWidth, int nHeight, void *pRGBData );
+void UI_TbnPrecacheDir( void );
+
+void UI_InitPopupThumb( void );
+int UI_PopupThumbCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long sParam );
 
 void UI_InitDetailView( const fileInfo_t *pImage, const char *pCurrentDir, IMG_HANDLE *pHandle );
 void UI_DrawDetailView( void );
@@ -341,9 +373,8 @@ void UI_DetailViewInput( u32 buttons );
 // ui_manager.c
 //
 
-menuFramework_t *UI_InitManagerMenu( void );
-void UI_ManagerCleanup( void );
-void UI_EventManagerMenu( void *pItem, int nCode );
+void UI_InitManagerMenu( void );
+int UI_ManagerCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long sParam );
 void UI_ManagerDraw( void );
 void UI_ManagerStartCopying( void );
 void UI_ManagerCopyDir( const char *path_in, const char *path_out );
@@ -361,10 +392,9 @@ typedef struct {
 
 #define MAX_DESC_ENTRIES 32
 
-menuFramework_t *UI_InitElfLoaderMenu( void );
-void UI_ElfLoaderCleanup( void );
+void UI_InitElfLoaderMenu( void );
+int UI_ElfLoaderCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long sParam );
 void UI_ElfLoaderDraw( void );
-void UI_EventElfLoaderMenu( void *pItem, int nCode );
 int UI_LoadDescriptions( descEntry_t *descTable, int maxItems );
 const descEntry_t *UI_GetDescByName( const char *name );
 int UI_AddDescription( const char *strFile, const char *strDesc );
@@ -373,15 +403,17 @@ int UI_AddDescription( const char *strFile, const char *strDesc );
 // ui_install.c
 //
 
-menuFramework_t *UI_InitCreatePart( void );
+void UI_InitCreatePart( void );
+int UI_CreatePartCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long sParam );
 void UI_CreatePartDraw( void );
-void UI_EventCreatePart( void *pItem, int nCode );
 
 //
 // ui_options.c
 //
 
-menuFramework_t *UI_InitOptionsMenu( void );
+void UI_InitOptionsMenu( void );
+int UI_OptionsCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long sParam );
+
 void UI_OptionsDraw( void );
 
 #endif

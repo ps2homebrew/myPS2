@@ -35,13 +35,14 @@ MA  02110-1301, USA.
 #define ID_HDD			1
 #define ID_CD			2
 #define ID_USB			3
-#define ID_SORTNAME		4
-#define ID_SORTTYPE		5
-#define ID_SORTSIZE		6
-#define ID_GOBACK		7
+#define ID_PRECACHE		4
+#define ID_SORTNAME		5
+#define ID_SORTTYPE		6
+#define ID_SORTSIZE		7
+#define ID_GOBACK		8
 
-#define ID_PREVPAGE		8
-#define ID_NEXTPAGE		9
+#define ID_PREVPAGE		9
+#define ID_NEXTPAGE		10
 
 #define ID_THUMBNAILS	4000
 
@@ -49,11 +50,12 @@ MA  02110-1301, USA.
 
 typedef struct
 {
-	menuFramework_t menu;
+	menuFramework_t *menu;
 
 	menuText_t		HDD;
 	menuText_t		CD;
 	menuText_t		USB;
+	menuText_t		Precache;
 	menuText_t		SortName;
 	menuText_t		SortType;
 	menuText_t		SortSize;
@@ -85,28 +87,30 @@ int				currentPage;				// page that is currently being displayed
 char			currentDir[256];			// current path of directory we are browsing
 fileInfo_t		fileInfo[MAX_DIR_FILES];	// Has 'numFiles' valid entries
 
+int				bDetailView;				// 1 if viewing image fullscreen
 IMG_HANDLE		hDetailImg;					// Handle to image in detail mode
 
 //
 // UI_InitPicViewMenu - Initializes Picture View Controls
 //
 
-menuFramework_t *UI_InitPicViewMenu( void )
+void UI_InitPicViewMenu( void )
 {
-	s_picview.menu.draw			= UI_PicViewDraw;
-	s_picview.menu.input		= NULL;
-	s_picview.menu.clean		= UI_PicViewCleanup;
-	s_picview.menu.numItems		= 0;
+	s_picview.menu						= &uis.menus[ MENU_PICVIEW ];
+
+	s_picview.menu->callback			= UI_PicViewCallback;
+	s_picview.menu->input				= NULL;
+
+	s_picview.menu->numItems			= 0;
 
 	// cd tab is selected by default
-	s_picview.menu.selectedItem	= 0;
+	s_picview.menu->selectedItem		= 0;
 
 	s_picview.CD.generic.type			= MENU_CONTROL_TEXT;
 	s_picview.CD.generic.flags			= 0;
 	s_picview.CD.generic.x				= 35;
 	s_picview.CD.generic.y				= 70;
 	s_picview.CD.generic.id				= ID_CD;
-	s_picview.CD.generic.callback		= UI_EventPicViewMenu;
 	s_picview.CD.text					= "Browse CD";
 	s_picview.CD.size					= GR_FONT_SMALL;
 	s_picview.CD.color					= RGB(255, 255, 255);
@@ -116,7 +120,6 @@ menuFramework_t *UI_InitPicViewMenu( void )
 	s_picview.HDD.generic.x				= 35;
 	s_picview.HDD.generic.y				= 90;
 	s_picview.HDD.generic.id			= ID_HDD;
-	s_picview.HDD.generic.callback		= UI_EventPicViewMenu;
 	s_picview.HDD.text					= "Browse HDD";
 	s_picview.HDD.size					= GR_FONT_SMALL;
 	s_picview.HDD.color					= RGB(255, 255, 255);
@@ -129,7 +132,6 @@ menuFramework_t *UI_InitPicViewMenu( void )
 	s_picview.USB.generic.x				= 35;
 	s_picview.USB.generic.y				= 110;
 	s_picview.USB.generic.id			= ID_USB;
-	s_picview.USB.generic.callback		= UI_EventPicViewMenu;
 	s_picview.USB.text					= "Browse USB";
 	s_picview.USB.size					= GR_FONT_SMALL;
 	s_picview.USB.color					= RGB(255, 255, 255);
@@ -137,12 +139,23 @@ menuFramework_t *UI_InitPicViewMenu( void )
 	if( !USB_Available() )
 		s_picview.USB.generic.flags		= CFL_INACTIVE;
 
+	s_picview.Precache.generic.type		= MENU_CONTROL_TEXT;
+	s_picview.Precache.generic.flags	= 0;
+	s_picview.Precache.generic.x		= 35;
+	s_picview.Precache.generic.y		= 140;
+	s_picview.Precache.generic.id		= ID_PRECACHE;
+	s_picview.Precache.text				= "Precache all";
+	s_picview.Precache.size				= GR_FONT_SMALL;
+	s_picview.Precache.color			= RGB(255, 255, 255);
+
+	if( sysConf.tbnCaching == 0 )
+		s_picview.Precache.generic.flags = CFL_INACTIVE;
+
 	s_picview.SortName.generic.type		= MENU_CONTROL_TEXT;
 	s_picview.SortName.generic.flags	= 0;
 	s_picview.SortName.generic.x		= 35;
-	s_picview.SortName.generic.y		= 140;
+	s_picview.SortName.generic.y		= 170;
 	s_picview.SortName.generic.id		= ID_SORTNAME;
-	s_picview.SortName.generic.callback	= UI_EventPicViewMenu;
 	s_picview.SortName.text				= "Sort by name";
 	s_picview.SortName.size				= GR_FONT_SMALL;
 	s_picview.SortName.color			= RGB(255, 255, 255);
@@ -150,9 +163,8 @@ menuFramework_t *UI_InitPicViewMenu( void )
 	s_picview.SortType.generic.type		= MENU_CONTROL_TEXT;
 	s_picview.SortType.generic.flags	= 0;
 	s_picview.SortType.generic.x		= 35;
-	s_picview.SortType.generic.y		= 160;
+	s_picview.SortType.generic.y		= 190;
 	s_picview.SortType.generic.id		= ID_SORTTYPE;
-	s_picview.SortType.generic.callback	= UI_EventPicViewMenu;
 	s_picview.SortType.text				= "Sort by type";
 	s_picview.SortType.size				= GR_FONT_SMALL;
 	s_picview.SortType.color			= RGB(255, 255, 255);
@@ -160,9 +172,8 @@ menuFramework_t *UI_InitPicViewMenu( void )
 	s_picview.SortSize.generic.type		= MENU_CONTROL_TEXT;
 	s_picview.SortSize.generic.flags	= 0;
 	s_picview.SortSize.generic.x		= 35;
-	s_picview.SortSize.generic.y		= 180;
+	s_picview.SortSize.generic.y		= 210;
 	s_picview.SortSize.generic.id		= ID_SORTSIZE;
-	s_picview.SortSize.generic.callback	= UI_EventPicViewMenu;
 	s_picview.SortSize.text				= "Sort by size";
 	s_picview.SortSize.size				= GR_FONT_SMALL;
 	s_picview.SortSize.color			= RGB(255, 255, 255);
@@ -170,27 +181,27 @@ menuFramework_t *UI_InitPicViewMenu( void )
 	s_picview.GoBack.generic.type		= MENU_CONTROL_TEXT;
 	s_picview.GoBack.generic.flags		= 0;
 	s_picview.GoBack.generic.x			= 35;
-	s_picview.GoBack.generic.y			= 220;
+	s_picview.GoBack.generic.y			= 250;
 	s_picview.GoBack.generic.id			= ID_GOBACK;
-	s_picview.GoBack.generic.callback	= UI_EventPicViewMenu;
 	s_picview.GoBack.text				= "Go back";
 	s_picview.GoBack.size				= GR_FONT_SMALL;
 	s_picview.GoBack.color				= RGB(255, 255, 255);
 
 	// add items to menu container
-	UI_AddItemToMenu( &s_picview.menu, &s_picview.CD );
-	UI_AddItemToMenu( &s_picview.menu, &s_picview.HDD );
-	UI_AddItemToMenu( &s_picview.menu, &s_picview.USB );
-	UI_AddItemToMenu( &s_picview.menu, &s_picview.SortName );
-	UI_AddItemToMenu( &s_picview.menu, &s_picview.SortType );
-	UI_AddItemToMenu( &s_picview.menu, &s_picview.SortSize );
+	UI_AddItemToMenu( s_picview.menu, &s_picview.CD );
+	UI_AddItemToMenu( s_picview.menu, &s_picview.HDD );
+	UI_AddItemToMenu( s_picview.menu, &s_picview.USB );
+	UI_AddItemToMenu( s_picview.menu, &s_picview.Precache );
+	UI_AddItemToMenu( s_picview.menu, &s_picview.SortName );
+	UI_AddItemToMenu( s_picview.menu, &s_picview.SortType );
+	UI_AddItemToMenu( s_picview.menu, &s_picview.SortSize );
 
-	UI_AddItemToMenu( &s_picview.menu, &s_picview.GoBack );
+	UI_AddItemToMenu( s_picview.menu, &s_picview.GoBack );
 
 	// all controls after these are dynamic
 	// meaning they will be deleted and recreated when the display page
 	// is changed.
-	s_picview.numStatic = s_picview.menu.numItems;
+	s_picview.numStatic = s_picview.menu->numItems;
 
 	// load folder and error thumbnails
 	GR_LoadImage( &s_picview.hFolderImg, (void*)&img_folder[0], img_folder_w, img_folder_h, img_folder_psm );
@@ -200,17 +211,143 @@ menuFramework_t *UI_InitPicViewMenu( void )
 	// it when loading a new set of thumbnails.
 	s_picview.oldTexBuf	= GR_GetTextureBuffer();
 
-	return &s_picview.menu;
+	return;
 }
 
 //
-// UI_PicViewCleanup - Called when Picture Viewer is about to be closed
+// UI_PicViewCallback
 //
 
-void UI_PicViewCleanup( void )
+int UI_PicViewCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long sParam )
 {
-	// Reset Texture Buffer Pointer to its old position.
-	GR_SetTextureBuffer( s_picview.hFolderImg.address );
+	int offset;
+
+	switch( nMsg )
+	{
+		// reset texture buffer pointer
+		case MSG_CLOSE:
+			GR_SetTextureBuffer( s_picview.hFolderImg.address );
+			return 1;
+
+		case MSG_DRAW:
+			if( bDetailView )
+				UI_DrawDetailView();
+			else
+				UI_PicViewDraw();
+			return 1;
+
+		case MSG_CONTROL:
+			switch( fParam )
+			{
+				case NOT_CLICKED:
+					// check if it's a thumbnail control
+					if( sParam >= ID_THUMBNAILS ) {
+						offset = sParam - ID_THUMBNAILS;
+						offset += currentPage * 16;
+
+						if( offset < 0 || offset >= numFiles ) {
+							printf("Error : offset out of range\n");
+							return 1;
+						}
+
+						// clicked a directory thumbnail
+						if( fileInfo[offset].flags & FLAG_DIRECTORY ) {
+							char newPath[256];
+							char *ptr;
+
+							// go up one level
+							if( !strcmp( fileInfo[offset].name, ".." ) ) {
+								offset = strlen(currentDir) - 1;
+								strncpy( newPath, currentDir, offset );
+								newPath[offset] = '\0';
+
+								ptr = strrchr( newPath, '/' );
+								if( !ptr )
+									return 1;
+
+								offset = ptr - newPath + 1;
+								strncpy( newPath, currentDir, offset );
+								newPath[offset] = 0;
+							}
+							else {
+								// append directory name to path
+								strcpy( newPath, currentDir );
+								strcat( newPath, fileInfo[offset].name );
+								strcat( newPath, "/" );
+							}
+
+							// make sure first thumbnail is always selected
+							s_picview.menu->selectedItem = s_picview.numStatic + 1;
+
+							UI_PicViewSetDir( newPath );
+							UI_UpdateImageGrid();
+						}
+						else {
+							// clicked an image, switch to detail view
+							UI_InitDetailView( &fileInfo[offset], currentDir, &hDetailImg );
+						}
+						return 1;
+					}
+					
+					switch(sParam)
+					{
+						// browse CD/DVD for images
+						case ID_CD:
+							UI_PicViewSetDir( "cdfs:/" );
+							UI_UpdateImageGrid();
+							return 1;
+
+						// browse HDD for images
+						case ID_HDD:
+							UI_PicViewSetDir( "pfs0:/" );
+							UI_UpdateImageGrid();
+							return 1;
+
+						// browse USB for images
+						case ID_USB:
+							UI_PicViewSetDir( "mass:/" );
+							UI_UpdateImageGrid();
+							return 1;
+
+						// precache all thumbnails
+						case ID_PRECACHE:
+							UI_PopupOpen( MENU_POPUP_THUMB, s_picview.menu );
+							return 1;
+
+						case ID_SORTNAME:
+							qsort( fileInfo, numFiles, sizeof(fileInfo_t), UI_SortByName );
+							UI_UpdateImageGrid();
+							return 1;
+
+						case ID_SORTSIZE:
+							qsort( fileInfo, numFiles, sizeof(fileInfo_t), UI_SortBySize );
+							UI_UpdateImageGrid();
+							return 1;
+
+						// pointless right now since we only load jpgs anyway
+						case ID_SORTTYPE:
+//							qsort( fileInfo, numFiles, sizeof(fileInfo_t), UI_SortByType );
+//							UI_UpdateImageGrid();
+							return 1;
+
+						case ID_PREVPAGE:
+							UI_PicViewPrevPage();
+							return 1;
+
+						case ID_NEXTPAGE:
+							UI_PicViewNextPage();
+							return 1;
+
+						case ID_GOBACK:
+							UI_SetActiveMenu(MENU_MAIN);
+							return 1;
+					}
+					break;
+			}
+			break;
+	}
+
+	return 0;
 }
 
 //
@@ -227,118 +364,7 @@ void UI_PicViewDraw( void )
 	GR_SetBlendMode( GR_BLEND_NONE );
 
 	// draw controls
-	UI_DrawMenu( &s_picview.menu );
-}
-
-//
-// UI_EventPicViewMenu - Callback
-//
-
-void UI_EventPicViewMenu( void *pItem, int nCode )
-{
-	int offset;
-
-	if(!pItem)
-		return;
-
-	// check if it's a thumbnail control
-	if( ((menuCommon_t*)pItem)->id >= ID_THUMBNAILS ) {
-		offset = ((menuCommon_t*)pItem)->id - ID_THUMBNAILS;
-		offset += currentPage * 16;
-
-		if( offset < 0 || offset >= numFiles ) {
-			printf("Error : offset out of range\n");
-			return;
-		}
-
-		// clicked a directory thumbnail
-		if( fileInfo[offset].flags & FLAG_DIRECTORY ) {
-			char newPath[256];
-			char *ptr;
-
-			// go up one level
-			if( !strcmp( fileInfo[offset].name, ".." ) ) {
-				offset = strlen(currentDir) - 1;
-				strncpy( newPath, currentDir, offset );
-				newPath[offset] = '\0';
-
-				ptr = strrchr( newPath, '/' );
-				if( !ptr )
-					return;
-
-				offset = ptr - newPath + 1;
-				strncpy( newPath, currentDir, offset );
-				newPath[offset] = 0;
-
-			}
-			else {
-				// append directory name to path
-				strcpy( newPath, currentDir );
-				strcat( newPath, fileInfo[offset].name );
-				strcat( newPath, "/" );
-			}
-
-			// make sure first thumbnail is always selected
-			s_picview.menu.selectedItem = s_picview.numStatic + 1;
-
-			UI_PicViewSetDir( newPath );
-			UI_UpdateImageGrid();
-		}
-		else {
-			// clicked an image, switch to detail view
-			UI_InitDetailView( &fileInfo[offset], currentDir, &hDetailImg );
-		}
-		return;
-	}
-
-	switch( ((menuCommon_t*)pItem)->id )
-	{
-		// browse CD/DVD for images
-		case ID_CD:
-			UI_PicViewSetDir( "cdfs:/" );
-			UI_UpdateImageGrid();
-			break;
-
-		// browse HDD for images
-		case ID_HDD:
-			UI_PicViewSetDir( "pfs0:/" );
-			UI_UpdateImageGrid();
-			break;
-
-		// browse USB for images
-		case ID_USB:
-			UI_PicViewSetDir( "mass:/" );
-			UI_UpdateImageGrid();
-			break;
-
-		case ID_SORTNAME:
-			qsort( fileInfo, numFiles, sizeof(fileInfo_t), UI_SortByName );
-			UI_UpdateImageGrid();
-			break;
-
-		case ID_SORTSIZE:
-			qsort( fileInfo, numFiles, sizeof(fileInfo_t), UI_SortBySize );
-			UI_UpdateImageGrid();
-			break;
-
-		// pointless right now since we only load jpgs anyway
-		case ID_SORTTYPE:
-//			qsort( fileInfo, numFiles, sizeof(fileInfo_t), UI_SortByType );
-//			UI_UpdateImageGrid();
-			break;
-
-		case ID_PREVPAGE:
-			UI_PicViewPrevPage();
-			break;
-
-		case ID_NEXTPAGE:
-			UI_PicViewNextPage();
-			break;
-
-		case ID_GOBACK:
-			UI_SetActiveMenu(MENU_ID_MAIN);
-			break;
-	}
+	UI_DrawMenu( s_picview.menu );
 }
 
 //
@@ -362,7 +388,7 @@ void UI_UpdateImageGrid( void )
 	// make sure we select it again after dynamic
 	// content has been modified.
 	Sel = -1;
-	pSelItem = UI_GetSelectedItem( &s_picview.menu );
+	pSelItem = UI_GetSelectedItem( s_picview.menu );
 	if( pSelItem && pSelItem->id == ID_PREVPAGE ) {
 		Sel = ID_PREVPAGE;
 	}
@@ -375,11 +401,11 @@ void UI_UpdateImageGrid( void )
 	printf("numStatic %i\n", s_picview.numStatic );
 	printf("numItems %i\n", s_picview.menu.numItems );
 #endif
-	x = s_picview.menu.numItems;
+	x = s_picview.menu->numItems;
 	y = s_picview.numStatic;
 	
 	for( n = y; n < x; n++ )
-		UI_DelItemFromMenu( &s_picview.menu, s_picview.menu.items[y] );
+		UI_DelItemFromMenu( s_picview.menu, s_picview.menu->items[y] );
 
 	// may have to draw "previous page" button
 	if( numPages > 0 ) {
@@ -388,7 +414,6 @@ void UI_UpdateImageGrid( void )
 		s_picview.prevPage.generic.x		= 160;
 		s_picview.prevPage.generic.y		= 234;
 		s_picview.prevPage.generic.id		= ID_PREVPAGE;
-		s_picview.prevPage.generic.callback	= UI_EventPicViewMenu;
 		s_picview.prevPage.width			= 30;
 		s_picview.prevPage.height			= 30;
 		s_picview.prevPage.direction		= TRI_LEFT;
@@ -396,9 +421,9 @@ void UI_UpdateImageGrid( void )
 
 		// select this item
 		if( Sel == ID_PREVPAGE )
-			s_picview.menu.selectedItem = s_picview.menu.numItems;
+			s_picview.menu->selectedItem = s_picview.menu->numItems;
 
-		UI_AddItemToMenu( &s_picview.menu, &s_picview.prevPage );
+		UI_AddItemToMenu( s_picview.menu, &s_picview.prevPage );
 	}
 
 	y = 60;
@@ -434,7 +459,6 @@ void UI_UpdateImageGrid( void )
 			s_picview.images[n].generic.x			= x;
 			s_picview.images[n].generic.y			= y;
 			s_picview.images[n].generic.id			= ID_THUMBNAILS + n;
-			s_picview.images[n].generic.callback	= UI_EventPicViewMenu;
 			s_picview.images[n].width				= 80;
 			s_picview.images[n].height				= 80;
 			s_picview.images[n].frameColor			= RGBA( 196, 226, 255, 128 );
@@ -443,7 +467,7 @@ void UI_UpdateImageGrid( void )
 			if( 0 == nRet )
 				s_picview.images[n].generic.flags |= CFL_INACTIVE;
 
-			UI_AddItemToMenu( &s_picview.menu, &s_picview.images[n] );
+			UI_AddItemToMenu( s_picview.menu, &s_picview.images[n] );
 
 			// add image name
 			strncpy( s_picview.text[n], fileInfo[ currentPage * 16 + n ].name, 8 );
@@ -460,7 +484,7 @@ void UI_UpdateImageGrid( void )
 			s_picview.imagetext[n].size					= GR_FONT_SMALL;
 			s_picview.imagetext[n].color				= RGB(255, 255, 255);
 
-			UI_AddItemToMenu( &s_picview.menu, &s_picview.imagetext[n] );
+			UI_AddItemToMenu( s_picview.menu, &s_picview.imagetext[n] );
 
 			n++;
 			x += 100;
@@ -479,7 +503,6 @@ void UI_UpdateImageGrid( void )
 		s_picview.nextPage.generic.x		= 590;
 		s_picview.nextPage.generic.y		= 234;
 		s_picview.nextPage.generic.id		= ID_NEXTPAGE;
-		s_picview.nextPage.generic.callback	= UI_EventPicViewMenu;
 		s_picview.nextPage.width			= 30;
 		s_picview.nextPage.height			= 30;
 		s_picview.nextPage.direction		= TRI_RIGHT;
@@ -487,9 +510,9 @@ void UI_UpdateImageGrid( void )
 
 		// select this item?
 		if( Sel == ID_NEXTPAGE )
-			s_picview.menu.selectedItem = s_picview.menu.numItems;
+			s_picview.menu->selectedItem = s_picview.menu->numItems;
 
-		UI_AddItemToMenu( &s_picview.menu, &s_picview.nextPage );
+		UI_AddItemToMenu( s_picview.menu, &s_picview.nextPage );
 	}
 
 	sprintf( s_picview.PageString, "Browsing Page %i / %i", currentPage + 1, numPages );
@@ -502,7 +525,7 @@ void UI_UpdateImageGrid( void )
 	s_picview.PageText.text				= s_picview.PageString;
 	s_picview.PageText.color			= RGB(255, 255, 255);
 
-	UI_AddItemToMenu( &s_picview.menu, &s_picview.PageText );
+	UI_AddItemToMenu( s_picview.menu, &s_picview.PageText );
 	UI_Refresh();
 }
 
@@ -660,7 +683,15 @@ int UI_CreateThumbnail( const fileInfo_t *pFile, const char *pCurrentDir, IMG_HA
 	if( pFile->flags & FLAG_DIRECTORY ) {
 		*pHandle = s_picview.hFolderImg;
 		return 1;
-	}	
+	}
+
+	// if it's already in the picture cache just use that
+	if( UI_TbnCacheLoad( pFile, pCurrentDir, pHandle ) ) {
+#ifdef _DEBUG
+		printf("UI_CreateThumbnail : Using cached picture\n");
+#endif
+		return 1;
+	}
 	
 	pFilename = (char*) malloc( strlen(pCurrentDir) + strlen(pFile->name) + 1 );
 	if( !pFilename ) {
@@ -783,6 +814,9 @@ int UI_CreateThumbnail( const fileInfo_t *pFile, const char *pCurrentDir, IMG_HA
 		return 0;
 	}
 
+	// save cache file so image can be loaded faster next time
+	UI_TbnCacheSave( pFile, pCurrentDir, nWidth, nHeight, pResData );
+
 	// upload thumbnail image to video ram
 	GR_LoadImage( pHandle, pResData, nWidth, nHeight, GR_PSM_24 );
 
@@ -795,6 +829,255 @@ int UI_CreateThumbnail( const fileInfo_t *pFile, const char *pCurrentDir, IMG_HA
 	return 1;
 }
 
+//
+// UI_TbnCacheLoad	- Attempts to find a cached version of a thumbnail for an image
+//					  in the HDD thumbnail cache. If cached thumbnail is found
+//					  it is then uploaded into vram.
+//
+//					  The function returns 1 on success, otherwise 0.
+//
+
+int UI_TbnCacheLoad( const fileInfo_t *pFile, const char *pCurrentDir, IMG_HANDLE *pHandle )
+{
+	FHANDLE		fHandle;
+	TBN_HEADER	tbnHeader;
+	char		strPath[256], strTmp[256];
+	char		*pStr;
+	u8			*pImgData;
+	int			nSize;
+
+	// user doesn't have thumbnail caching enabled
+	if( sysConf.tbnCaching == 0 )
+		return 0;
+
+	// user doesn't have a HDD and thumbnail caching shouldn't
+	// be enabled in the first place...
+	if( HDD_Available() != HDD_AVAIL )
+		return 0;
+
+	if( !sysConf.tbnCachePath[0] )
+		return 0;
+
+	// build path to TBN file
+	strcpy( strPath, sysConf.tbnCachePath );
+
+	if( strPath[ strlen(strPath) - 1 ] != '/' )
+		strcat( strPath, "/" );
+
+	strcpy( strTmp, pCurrentDir );
+
+	if( (pStr = strchr( strTmp, ':' )) == NULL ) {
+#ifdef _DEBUG
+		printf("UI_TbnCacheLoad : Invalid directory (missing ':')\n");
+#endif
+		return 0;
+	}
+
+	*pStr = 0;
+	pStr++;
+
+	strcat( strPath, strTmp );
+	strcat( strPath, pStr );
+
+	// make sure directory path exists
+	DirCreate( strPath );
+
+	// add filename
+	StripFileExt( strTmp, pFile->name );
+	strcat( strPath, strTmp );
+	strcat( strPath, ".TBN" );
+
+	// If you try to open files that don't exist too fast
+	// it seems to crash the IOP (null buffer returned).
+	// So as a workaround always open the file with O_CREAT
+	// which seems to fix that problem.
+	fHandle = FileOpen( strPath, O_RDONLY | O_CREAT );
+
+	// couldn't open file
+	if( fHandle.fh < 0 )
+	{
+		printf("UI_TbnCacheLoad : could not open %s\n", strPath);
+		return 0;
+	}
+
+	// file was just created by FileOpen
+	nSize = FileSeek( fHandle, 0, SEEK_END );
+	if( nSize == 0 ) {
+		FileClose( fHandle );
+		return 0;
+	}
+
+	FileSeek( fHandle, 0, SEEK_SET );
+	FileRead( fHandle, &tbnHeader, sizeof(tbnHeader) );
+
+	if( tbnHeader.magic[0] != 'T' || tbnHeader.magic[1] != 'C' ) {
+		FileClose(fHandle);
+		return 0;
+	}
+
+	if( tbnHeader.size != pFile->size )
+		return 0;
+
+	// read the RGB data
+	pImgData = (u8*) memalign( 128, tbnHeader.width * tbnHeader.height * 3 );
+	
+	if( pImgData == NULL ) {
+#ifdef _DEBUG
+		printf("UI_TbnCacheLoad : memalign() failed for pImgData\n");
+#endif
+		FileClose(fHandle);
+		return 0;
+	}
+
+	FileRead( fHandle, pImgData, tbnHeader.width * tbnHeader.height * 3 );
+	FileClose( fHandle );
+
+	// upload image
+	GR_LoadImage( pHandle, pImgData, tbnHeader.width, tbnHeader.height, GR_PSM_24 );
+
+	free(pImgData);
+	return 1;
+}
+
+//
+// UI_TbnCacheSave	- Attempts to save generated thumbnail RGB data to HDD
+//					  thumbnail cache directory.
+//					  RGB data should be 24 Bits per pixel.
+//
+//					  The function returns 1 on success, otherwise 0.
+//
+
+int UI_TbnCacheSave( const fileInfo_t *pFile, const char *pCurrentDir, int nWidth, int nHeight, void *pRGBData )
+{
+	FHANDLE		fHandle;
+	TBN_HEADER	tbnHeader;
+	char		strPath[256], strTmp[256];
+	char		*pStr;
+
+	if( sysConf.tbnCaching == 0 )
+		return 0;
+
+	if( !sysConf.tbnCachePath[0] )
+		return 0;
+
+	if( HDD_Available() != HDD_AVAIL )
+		return 0;
+
+	// build path to TBN file
+	strcpy( strPath, sysConf.tbnCachePath );
+
+	if( strPath[ strlen(strPath) - 1 ] != '/' )
+		strcat( strPath, "/" );
+
+	strcpy( strTmp, pCurrentDir );
+
+	if( (pStr = strchr( strTmp, ':' )) == NULL ) {
+#ifdef _DEBUG
+		printf("UI_TbnCacheSave : Invalid directory (missing ':')\n");
+#endif
+		return 0;
+	}
+
+	*pStr = 0;
+	pStr++;
+
+	strcat( strPath, strTmp );
+	strcat( strPath, pStr );
+
+	// add filename
+	StripFileExt( strTmp, pFile->name );
+	strcat( strPath, strTmp );
+	strcat( strPath, ".TBN" );
+
+	// attempt to create file
+	fHandle = FileOpen( strPath, O_RDWR | O_CREAT | O_TRUNC );
+
+	if( fHandle.fh < 0 )
+	{
+		printf("UI_TbnCacheSave : Could not open file : %s\n", strPath );
+		return 0;
+	}
+
+	// write thumbnail cache file header
+	tbnHeader.magic[0]	= 'T';
+	tbnHeader.magic[1]	= 'C';
+
+	tbnHeader.size		= pFile->size;
+	tbnHeader.width		= nWidth;
+	tbnHeader.height	= nHeight;
+
+	FileWrite( fHandle, &tbnHeader, sizeof(tbnHeader) );
+
+	// write RGB data to file
+	FileWrite( fHandle, pRGBData, nWidth * nHeight * 3 ); 
+
+	// done
+	FileClose( fHandle );
+	return 1;
+}
+
+////////////////////////////////////////////////////////////////////
+// MENU_POPUP_THUMB Popup
+
+typedef struct {
+	menuFramework_t	*menu;
+
+	menuText_t		Text;
+	menuProgress_t	Progress;
+} uiPopupThumb_t;
+
+static uiPopupThumb_t s_popupthumb;
+
+//
+// UI_InitPopupThumb - Initializes Thumbnail Popup
+//
+
+void UI_InitPopupThumb( void )
+{
+	int i;
+	u64 totalSize = 0;
+
+	s_popupthumb.menu				= &uis.menus[ MENU_POPUP_THUMB ];
+
+	s_popupthumb.menu->callback		= UI_PopupThumbCallback;
+	s_popupthumb.menu->input		= NULL;
+	s_popupthumb.menu->numItems		= 0;
+
+	s_popupthumb.Text.generic.type		= MENU_CONTROL_TEXT;
+	s_popupthumb.Text.generic.flags		= 0;
+	s_popupthumb.Text.generic.x			= 200;
+	s_popupthumb.Text.generic.y			= 100;
+	s_popupthumb.Text.text				= "Generating Thumbnails";
+	s_popupthumb.Text.color				= RGB(255,255,255);
+	s_popupthumb.Text.size				= GR_FONT_SMALL;
+
+	s_popupthumb.Progress.generic.type	= MENU_CONTROL_PROGRESS;
+	s_popupthumb.Progress.generic.flags	= CFL_INACTIVE;
+	s_popupthumb.Progress.generic.x		= 200;
+	s_popupthumb.Progress.generic.y		= 130;
+	s_popupthumb.Progress.width			= 200;
+	s_popupthumb.Progress.height		= 20;
+	s_popupthumb.Progress.textColor		= RGB(255,255,255);
+	s_popupthumb.Progress.barColor		= RGBA(0,255,0, 32);
+
+	UI_AddItemToMenu( s_popupthumb.menu, &s_popupthumb.Text );
+	UI_AddItemToMenu( s_popupthumb.menu, &s_popupthumb.Progress );
+
+	for( i = 0; i < numFiles; i++ )
+		totalSize += fileInfo[i].size;
+
+	UI_Progress_SetBounds( &s_popupthumb.Progress, 0, totalSize );
+	UI_Progress_SetPosition( &s_popupthumb.Progress, 64 );
+}
+
+//
+// UI_PopupThumbCallback
+//
+
+int UI_PopupThumbCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long sParam )
+{
+	return 0;
+}
 
 //
 // Image Detail View Stuff
@@ -949,9 +1232,8 @@ void UI_InitDetailView( const fileInfo_t *pImage, const char *pCurrentDir, IMG_H
 	free(pImgData);
 	free( pFilename );
 
-	// install custom draw and input handler
-	s_picview.menu.draw		= UI_DrawDetailView;
-	s_picview.menu.input	= UI_DetailViewInput;
+	// install custom input handler
+	s_picview.menu->input		= UI_DetailViewInput;
 
 	// make it so we receive input events as long as a button is down
 	GP_SetPressMode(1);
@@ -960,6 +1242,8 @@ void UI_InitDetailView( const fileInfo_t *pImage, const char *pCurrentDir, IMG_H
 	fZoomFactor = 1.0f;
 	imgOffset_x	= 0;
 	imgOffset_y	= 0;
+
+	bDetailView = 1;
 
 	// trigger redraw
 	UI_Refresh();
@@ -1010,11 +1294,12 @@ void UI_DetailViewInput( u32 buttons )
 	// quit detail view
 	if( buttons & PAD_TRIANGLE )
 	{
-		s_picview.menu.draw		= UI_PicViewDraw;
-		s_picview.menu.input	= NULL;
+		s_picview.menu->input		= NULL;
 
 		// reset texture buffer pointer
 		GR_SetTextureBuffer( hDetailImg.address );
+
+		bDetailView = 0;
 
 		GP_SetPressMode(0);
 		UI_Refresh();

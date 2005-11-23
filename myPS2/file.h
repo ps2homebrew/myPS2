@@ -86,10 +86,14 @@ int FileRename( const char *src, const char *dst );
 // fileInfo_t structure.
 #define FLAG_MARKED		0x10000000
 
+// other
+int CmpFileExtension( const char *filename, const char *ext );
+char *StripFileExt( char *dst, const char *src );
+
 // some useful dir functions
 int DirGetContents( const char *path, const char *filter, fileInfo_t *fileInfo, int maxItems );
-int CmpFileExtension( const char *filename, const char *ext );
 u64 DirGetSize( const char *path, u64 reserved );
 void DirRemove( const char *path );
+void DirCreate( const char *path );
 
 #endif

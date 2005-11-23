@@ -33,7 +33,7 @@ MA  02110-1301, USA.
 #include <ui.h>
 
 typedef struct {
-	menuFramework_t	menu;
+	menuFramework_t	*menu;
 
 } uiOptionsMenu_t;
 
@@ -43,14 +43,22 @@ static uiOptionsMenu_t	s_options;
 // UI_InitOptionsMenu - Initializes options menu controls
 //
 
-menuFramework_t *UI_InitOptionsMenu( void )
+void UI_InitOptionsMenu( void )
 {
-	s_options.menu.clean	= NULL;
-	s_options.menu.draw		= UI_OptionsDraw;
-	s_options.menu.input	= NULL;
-	s_options.menu.numItems	= 0;
+	s_options.menu				= &uis.menus[ MENU_OPTIONS ];
 
-	return &s_options.menu;
+	s_options.menu->callback	= UI_OptionsCallback;
+	s_options.menu->input		= NULL;
+	s_options.menu->numItems	= 0;
+}
+
+//
+// UI_OptionsCallback
+//
+
+int UI_OptionsCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long sParam )
+{
+	return 0;
 }
 
 //

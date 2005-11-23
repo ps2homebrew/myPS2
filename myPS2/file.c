@@ -727,6 +727,29 @@ int CmpFileExtension( const char *filename, const char *ext )
 }
 
 //
+// StripFileExt - Strips file extension from a filename
+//				  Returns pointer to dst string
+//
+
+char *StripFileExt( char *dst, const char *src )
+{
+	int	l;
+	char *p; 
+	
+	if( (p = strrchr( src, '.' )) == NULL ) {
+		*dst = 0;
+		return dst;
+	}
+
+	l = strlen(src) - strlen(p);
+	strncpy( dst, src, l );
+	*(dst + l) = 0;
+
+	return dst;
+}
+
+
+//
 // DirGetSize - Returns the cumulative size of all files in a directory 
 //				and its sub-directories.
 //				u64 reserved must be 0.
@@ -824,4 +847,43 @@ void DirRemove( const char *path )
 	FileRmdir( path );
 
 	free(pFileInfo);
+}
+
+//
+// DirCreate - Creates new directory
+//
+
+void DirCreate( const char *path )
+{
+	char strBase[256];
+	char *ptr;
+	int c;
+
+	if( (ptr = strchr( path, ':' )) == NULL ) {
+#ifdef _DEBUG
+		printf("DirCreate : Invalid Path (ptr = NULL)\n");
+#endif
+		return;
+	}
+
+	// skip ':'
+	ptr++;
+
+	// first slash is optional
+	if( *ptr == '/' )
+		ptr++;
+
+	c = ptr - path;
+
+	strncpy( strBase, path, c );
+
+	while(*ptr) {
+		strBase[c++]	= *ptr;
+		strBase[c]		= 0;
+		
+		if( *ptr == '/' )
+			FileMkdir( strBase );
+
+		ptr++;	
+	}
 }

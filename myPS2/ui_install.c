@@ -46,7 +46,7 @@ MA  02110-1301, USA.
 #define ID_CONTINUE	5
 
 typedef struct {
-	menuFramework_t		menu;
+	menuFramework_t		*menu;
 
 	menuText_t			Yes;
 	menuText_t			No;
@@ -64,13 +64,15 @@ typedef struct {
 
 static uiCreatePart s_createPart;
 
-menuFramework_t *UI_InitCreatePart( void )
+void UI_InitCreatePart( void )
 {
-	s_createPart.menu.draw			= UI_CreatePartDraw;
-	s_createPart.menu.clean			= NULL;
-	s_createPart.menu.input			= NULL;
-	s_createPart.menu.numItems		= 0;
-	s_createPart.menu.selectedItem	= 0;
+	s_createPart.menu						= &uis.menus[ MENU_CREATEPART ];
+
+	s_createPart.menu->callback				= UI_CreatePartCallback;
+	s_createPart.menu->input				= NULL;
+
+	s_createPart.menu->numItems				= 0;
+	s_createPart.menu->selectedItem			= 0;
 
 	// page 1
 	s_createPart.Yes.generic.type			= MENU_CONTROL_TEXT;
@@ -78,7 +80,6 @@ menuFramework_t *UI_InitCreatePart( void )
 	s_createPart.Yes.generic.x				= 300;
 	s_createPart.Yes.generic.y				= 260;
 	s_createPart.Yes.generic.id				= ID_YES;
-	s_createPart.Yes.generic.callback		= UI_EventCreatePart;
 	s_createPart.Yes.text					= "Yes";
 	s_createPart.Yes.color					= RGB(255, 255, 255);
 	s_createPart.Yes.size					= GR_FONT_SMALL;
@@ -88,13 +89,12 @@ menuFramework_t *UI_InitCreatePart( void )
 	s_createPart.No.generic.x				= 302;
 	s_createPart.No.generic.y				= 285;
 	s_createPart.No.generic.id				= ID_NO;
-	s_createPart.No.generic.callback		= UI_EventCreatePart;
 	s_createPart.No.text					= "No";
 	s_createPart.No.color					= RGB(255, 255, 255);
 	s_createPart.No.size					= GR_FONT_SMALL;
 
-	UI_AddItemToMenu( &s_createPart.menu, &s_createPart.Yes );
-	UI_AddItemToMenu( &s_createPart.menu, &s_createPart.No );
+	UI_AddItemToMenu( s_createPart.menu, &s_createPart.Yes );
+	UI_AddItemToMenu( s_createPart.menu, &s_createPart.No );
 
 	// page 2
 	s_createPart.Slider.generic.type		= MENU_CONTROL_SLIDER;
@@ -102,7 +102,6 @@ menuFramework_t *UI_InitCreatePart( void )
 	s_createPart.Slider.generic.x			= 170;
 	s_createPart.Slider.generic.y			= 218;
 	s_createPart.Slider.generic.id			= ID_SLIDER;
-	s_createPart.Slider.generic.callback	= UI_EventCreatePart;
 	s_createPart.Slider.barColor			= RGBA( 82, 117, 168, 40 );
 	s_createPart.Slider.width				= 300;
 	s_createPart.Slider.height				= 20;
@@ -112,7 +111,6 @@ menuFramework_t *UI_InitCreatePart( void )
 	s_createPart.Create.generic.x			= 170;
 	s_createPart.Create.generic.y			= 300;
 	s_createPart.Create.generic.id			= ID_CREATE;
-	s_createPart.Create.generic.callback	= UI_EventCreatePart;
 	s_createPart.Create.text				= "Create Partition";
 	s_createPart.Create.color				= RGB(255, 255, 255);
 	s_createPart.Create.size				= GR_FONT_SMALL;
@@ -122,7 +120,6 @@ menuFramework_t *UI_InitCreatePart( void )
 	s_createPart.Cancel.generic.x			= 380;
 	s_createPart.Cancel.generic.y			= 300;
 	s_createPart.Cancel.generic.id			= ID_CANCEL;
-	s_createPart.Cancel.generic.callback	= UI_EventCreatePart;
 	s_createPart.Cancel.text				= "Cancel";
 	s_createPart.Cancel.color				= RGB(255, 255, 255);
 	s_createPart.Cancel.size				= GR_FONT_SMALL;
@@ -133,14 +130,105 @@ menuFramework_t *UI_InitCreatePart( void )
 	s_createPart.Continue.generic.x			= 228;
 	s_createPart.Continue.generic.y			= 280;
 	s_createPart.Continue.generic.id		= ID_CONTINUE;
-	s_createPart.Continue.generic.callback	= UI_EventCreatePart;
 	s_createPart.Continue.text				= "Continue to main menu";
 	s_createPart.Continue.color				= RGB(255, 255, 255);
 	s_createPart.Continue.size				= GR_FONT_SMALL;
 
 	s_createPart.nPage = 0;
+}
 
-	return &s_createPart.menu;
+//
+// UI_CreatePartCallback
+//
+
+int UI_CreatePartCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long sParam )
+{
+	int	nRet;
+	u64 nPartSize;
+
+	switch( nMsg )
+	{
+		case MSG_CONTROL:
+			switch( sParam )
+			{
+				// switch to page 2 of dialog
+				case ID_YES:
+					s_createPart.nPage++;
+
+					// can now remove page 1 controls
+					UI_DelItemFromMenu( s_createPart.menu, &s_createPart.Yes );
+					UI_DelItemFromMenu( s_createPart.menu, &s_createPart.No );
+
+					// add page 2 controls
+					UI_AddItemToMenu( s_createPart.menu, &s_createPart.Slider );
+					UI_AddItemToMenu( s_createPart.menu, &s_createPart.Create );
+					UI_AddItemToMenu( s_createPart.menu, &s_createPart.Cancel );
+					UI_SelectItemById( s_createPart.menu, ID_SLIDER );
+
+					// setup slider
+					UI_Slider_SetBounds( &s_createPart.Slider, 0, HDD_GetFreeSpace() );
+					UI_Slider_SetPos( &s_createPart.Slider, 0 );
+					UI_Slider_SetStepSize( &s_createPart.Slider, 50 );
+
+					// refresh everything
+					UI_Refresh();
+					return 1;
+
+
+				case ID_NO:
+				case ID_CANCEL:
+				case ID_CONTINUE:
+					UI_SetActiveMenu( MENU_MAIN );
+					return 1;
+
+				// switch to page 3 of dialog
+				case ID_CREATE:
+					s_createPart.nPage++;
+
+					// attempt to create partition
+					nPartSize = UI_Slider_GetPos( &s_createPart.Slider );
+
+					// normal message displayed
+					sprintf( s_createPart.strMsg, "Partition created successfully (%i MB)", (u32) nPartSize  );
+
+					nRet = HDD_CreatePartition( PARTITION_NAME, nPartSize );
+			
+					// some error occured
+					if( !nRet ) {
+						strcpy( s_createPart.strMsg, "Could not create partition" );
+					}
+					else {
+
+						// created partition, now try to mount it
+						nRet = HDD_MountPartition( "pfs0:", PARTITION_NAME );
+
+						// could not mount partition, something must have gone wrong
+						if( !nRet )
+							strcpy( s_createPart.strMsg, "Could not mount created partition" );
+					}
+
+					// can now remove page 2 controls
+					UI_DelItemFromMenu( s_createPart.menu, &s_createPart.Slider );
+					UI_DelItemFromMenu( s_createPart.menu, &s_createPart.Create );
+					UI_DelItemFromMenu( s_createPart.menu, &s_createPart.Cancel );
+
+					// add page 3 controls
+					UI_AddItemToMenu( s_createPart.menu, &s_createPart.Continue );
+					UI_SelectItemById( s_createPart.menu, ID_CONTINUE );
+
+					// refresh everything
+					UI_Refresh();
+					return 1;
+			}
+			break;
+
+		case MSG_DRAW:
+			UI_CreatePartDraw();
+			return 1;
+	}
+
+	return 0;
+
 }
 
 void UI_CreatePartDraw( void )
@@ -152,7 +240,7 @@ void UI_CreatePartDraw( void )
 	char	strBuf[64];
 
 	// draw menu controls
-	UI_DrawMenu( &s_createPart.menu );
+	UI_DrawMenu( s_createPart.menu );
 
 	// draw all the static text
 	origin_x = 120;
@@ -218,82 +306,5 @@ void UI_CreatePartDraw( void )
 
 		GR_SetFontColor( RGB( 255, 255, 255 ) );
 		GR_DrawTextExt( x, y, p, GR_FONT_SMALL );
-	}
-}
-
-void UI_EventCreatePart( void *pItem, int nCode )
-{
-	int	nRet;
-	u64 nPartSize;
-
-	switch( ((menuCommon_t*)pItem)->id )
-	{
-		// switch to page 2 of dialog
-		case ID_YES:
-			s_createPart.nPage++;
-
-			// can now remove page 1 controls
-			UI_DelItemFromMenu( &s_createPart.menu, &s_createPart.Yes );
-			UI_DelItemFromMenu( &s_createPart.menu, &s_createPart.No );
-
-			// add page 2 controls
-			UI_AddItemToMenu( &s_createPart.menu, &s_createPart.Slider );
-			UI_AddItemToMenu( &s_createPart.menu, &s_createPart.Create );
-			UI_AddItemToMenu( &s_createPart.menu, &s_createPart.Cancel );
-			UI_SelectItemById( &s_createPart.menu, ID_SLIDER );
-
-			// setup slider
-			UI_Slider_SetBounds( &s_createPart.Slider, 0, HDD_GetFreeSpace() );
-			UI_Slider_SetPos( &s_createPart.Slider, 0 );
-			UI_Slider_SetStepSize( &s_createPart.Slider, 50 );
-
-			// refresh everything
-			UI_Refresh();
-			break;
-
-		case ID_NO:
-		case ID_CANCEL:
-		case ID_CONTINUE:
-			UI_SetActiveMenu( MENU_ID_MAIN );
-			break;
-
-		// switch to page 3 of dialog
-		case ID_CREATE:
-			s_createPart.nPage++;
-
-			// attempt to create partition
-			nPartSize = UI_Slider_GetPos( &s_createPart.Slider );
-
-			// normal message displayed
-			sprintf( s_createPart.strMsg, "Partition created successfully (%i MB)", (u32) nPartSize  );
-
-			nRet = HDD_CreatePartition( PARTITION_NAME, nPartSize );
-			
-			// some error occured
-			if( !nRet ) {
-				strcpy( s_createPart.strMsg, "Could not create partition" );
-			}
-			else {
-
-				// created partition, now try to mount it
-				nRet = HDD_MountPartition( "pfs0:", PARTITION_NAME );
-
-				// could not mount partition, something must have gone wrong
-				if( !nRet )
-					strcpy( s_createPart.strMsg, "Could not mount created partition" );
-			}
-
-			// can now remove page 2 controls
-			UI_DelItemFromMenu( &s_createPart.menu, &s_createPart.Slider );
-			UI_DelItemFromMenu( &s_createPart.menu, &s_createPart.Create );
-			UI_DelItemFromMenu( &s_createPart.menu, &s_createPart.Cancel );
-
-			// add page 3 controls
-			UI_AddItemToMenu( &s_createPart.menu, &s_createPart.Continue );
-			UI_SelectItemById( &s_createPart.menu, ID_CONTINUE );
-
-			// refresh everything
-			UI_Refresh();
-			break;
 	}
 }
