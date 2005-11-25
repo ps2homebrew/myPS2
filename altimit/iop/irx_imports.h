@@ -13,7 +13,9 @@
 
 
 /* Please keep these in alphabetical order!  */
+#if 0  /* EEUG: WHY ? */
 #include "cdvdman.h"
+#endif
 #include "intrman.h"
 #include "ioman.h"
 #include "loadcore.h"
