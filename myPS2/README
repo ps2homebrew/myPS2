@@ -14,6 +14,9 @@ to build MYPS2.ELF :
 4. Compile the usb_irx project. This should put out usb_mass.irx
    in myPS2/usb_irx/bin/.
 
-3. Compile the myPS2 project. This should put out MYPS2.ELF in
+5. Compile the ps2ftpd project. This should put out ps2ftpd.irx in
+   myPS2/ps2ftpd/bin/.
+
+6. Compile the myPS2 project. This should put out MYPS2.ELF in
    myPS2/bin/.
 

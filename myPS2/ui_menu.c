@@ -102,6 +102,14 @@ int UI_AddItemToMenu( menuFramework_t *menu, void *item )
 		case MENU_CONTROL_SLIDER:
 			UI_InitSliderControl( (menuSlider_t*)item );
 			break;
+
+		case MENU_CONTROL_RADIO:
+			UI_InitRadioControl( (menuRadio_t*)item );
+			break;
+
+		case MENU_CONTROL_COMBO:
+			UI_InitComboControl( (menuCombo_t*)item );
+			break;
 	}
 
 	menu->numItems++;
@@ -351,6 +359,14 @@ void UI_DrawMenu( menuFramework_t *menu )
 			case MENU_CONTROL_SLIDER:
 				UI_DrawSliderControl( (menuSlider_t*)ptr );
 				break;
+
+			case MENU_CONTROL_RADIO:
+				UI_DrawRadioControl( (menuRadio_t*)ptr );
+				break;
+
+			case MENU_CONTROL_COMBO:
+				UI_DrawComboControl( (menuCombo_t*)ptr );
+				break;
 		}
 	}
 }
@@ -362,7 +378,7 @@ void UI_DrawMenu( menuFramework_t *menu )
 //
 
 void UI_Refresh( void )
-{printf("UI_REFRESH\n");
+{
 	GR_ClearScreen();
 
 	// render background image
@@ -421,6 +437,14 @@ void UI_SetActiveMenu( int menuId )
 
 		case MENU_OPTIONS:
 			UI_InitOptionsMenu();
+			break;
+
+		case MENU_NETWORK:
+			UI_InitNetworkMenu();
+			break;
+
+		case MENU_OPTIONS_EDIT:
+			UI_InitEditMenu();
 			break;
 
 		case MENU_POPUP_THUMB:
@@ -508,6 +532,14 @@ void UI_DefaultInputHandler( menuFramework_t *menu, u32 buttons )
 
 		case MENU_CONTROL_SLIDER:
 			bHandled = UI_InputSliderControl( (menuSlider_t*)item, menu, buttons );
+			break;
+
+		case MENU_CONTROL_RADIO:
+			bHandled = UI_InputRadioControl( (menuRadio_t*)item, menu, buttons );
+			break;
+
+		case MENU_CONTROL_COMBO:
+			bHandled = UI_InputComboControl( (menuCombo_t*)item, menu, buttons );
 			break;
 	}
 
@@ -806,7 +838,7 @@ void UI_DrawDirViewControl( menuDirView_t *pDirView )
 		color = RGB(255, 255, 255);
 
 		// if dirview control has focus, color the selected entry green
-		if( (UI_GetSelectedItem(uis.active) == pDirView) && (i == pDirView->selEntry) ) {
+		if( (UI_GetSelectedItem(pDirView->generic.parent) == pDirView) && (i == pDirView->selEntry) ) {
 			color = RGB(0, 255, 0);
 		}
 		else if( pDirView->pEntries[i].flags & FLAG_MARKED ) {
@@ -1138,7 +1170,7 @@ void UI_DrawProgressControl( menuProgress_t *pProgress )
 	pos_x = pProgress->generic.x;
 	pos_y = pProgress->generic.y;
 
-	pos_x += pProgress->width / 2 - GR_GetStringWidth( str, GR_FONT_SMALL );
+	pos_x += pProgress->width / 2 - GR_GetStringWidth( str, GR_FONT_SMALL ) / 2;
 	pos_y += (pProgress->height - 15) / 2;
 
 	old = GR_SetFontColor( pProgress->textColor );
@@ -1207,7 +1239,7 @@ const char EditCTL_CharMap[] =
 	'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D',
 	'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
 	'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',
-	'Y', 'Z', '_', '(', ')'
+	'Y', 'Z', '_', '(', ')', '.', ':', '/'
 };
 
 const int EditCTL_CharMapSize = sizeof(EditCTL_CharMap) / sizeof(const char);
@@ -1381,6 +1413,7 @@ void UI_DrawEditControl( menuEditfield_t *pEditfield )
 	int		nSpace, nOffset;
 	char	strChar[32], strBuf[256];
 	int		i, c;
+	float	alpha;
 	point_t	p[3];
 
 	// this is ugly
@@ -1392,13 +1425,17 @@ void UI_DrawEditControl( menuEditfield_t *pEditfield )
 	if( !pEditfield )
 		return;
 
-	// render background
-	GR_SetDrawColor( pEditfield->color );
-	GR_SetAlpha( 0.25f );
-	GR_SetBlendMode(GR_BLEND_CONSTANT);
-	GR_DrawRoundRect( pEditfield->generic.x, pEditfield->generic.y, 
-					  pEditfield->width, pEditfield->height );
-	GR_SetBlendMode(GR_BLEND_NONE);
+	if( !(pEditfield->generic.flags & CFL_EF_NOBKG) ) {
+		alpha = ((pEditfield->color >> 24) & 127) / 128.0f;
+ 
+		// render background
+		GR_SetDrawColor( pEditfield->color );
+		GR_SetAlpha( alpha );
+		GR_SetBlendMode(GR_BLEND_CONSTANT);
+		GR_DrawRoundRect( pEditfield->generic.x, pEditfield->generic.y, 
+						  pEditfield->width, pEditfield->height );
+		GR_SetBlendMode(GR_BLEND_NONE);
+	}
 
 	// draw string
 	nHeight = pEditfield->generic.y + UI_EDIT_MARGIN;
@@ -1457,7 +1494,7 @@ void UI_DrawEditControl( menuEditfield_t *pEditfield )
 		}
 
 		// if edit control has focus, color the selected character green
-		if( UI_GetSelectedItem(uis.active) == pEditfield && pEditfield->chrIndex == c ) {
+		if( UI_GetSelectedItem(pEditfield->generic.parent) == pEditfield && pEditfield->chrIndex == c ) {
 			GR_SetFontColor( RGB(0, 255, 0) );
 		}
 		else {
@@ -1472,7 +1509,7 @@ void UI_DrawEditControl( menuEditfield_t *pEditfield )
 	// draw other buttons
 	nHeight += 35;
 
-	if( UI_GetSelectedItem(uis.active) == pEditfield && pEditfield->chrIndex == BtnSpace )
+	if( UI_GetSelectedItem(pEditfield->generic.parent) == pEditfield && pEditfield->chrIndex == BtnSpace )
 		GR_SetFontColor( RGB( 0, 255, 0 ) );
 	else
 		GR_SetFontColor( RGB( 255, 255, 255 ) );
@@ -1482,7 +1519,7 @@ void UI_DrawEditControl( menuEditfield_t *pEditfield )
 	nWidth = GR_GetStringWidth( "Space", GR_FONT_SMALL );
 	nWidth = nWidth + 25;
 
-	if( UI_GetSelectedItem(uis.active) == pEditfield && pEditfield->chrIndex == BtnDelete )
+	if( UI_GetSelectedItem(pEditfield->generic.parent) == pEditfield && pEditfield->chrIndex == BtnDelete )
 		GR_SetFontColor( RGB( 0, 255, 0 ) );
 	else
 		GR_SetFontColor( RGB( 255, 255, 255 ) );
@@ -1492,7 +1529,7 @@ void UI_DrawEditControl( menuEditfield_t *pEditfield )
 	nWidth += GR_GetStringWidth( "Delete", GR_FONT_SMALL );
 	nWidth += 25;
 
-	if( UI_GetSelectedItem(uis.active) == pEditfield && pEditfield->chrIndex == BtnCancel )
+	if( UI_GetSelectedItem(pEditfield->generic.parent) == pEditfield && pEditfield->chrIndex == BtnCancel )
 		GR_SetFontColor( RGB( 0, 255, 0 ) );
 	else
 		GR_SetFontColor( RGB( 255, 255, 255 ) );
@@ -1502,7 +1539,7 @@ void UI_DrawEditControl( menuEditfield_t *pEditfield )
 	nWidth += GR_GetStringWidth( "Space", GR_FONT_SMALL );
 	nWidth += 25;
 
-	if( UI_GetSelectedItem(uis.active) == pEditfield && pEditfield->chrIndex == BtnOk )
+	if( UI_GetSelectedItem(pEditfield->generic.parent) == pEditfield && pEditfield->chrIndex == BtnOk )
 		GR_SetFontColor( RGB( 0, 255, 0 ) );
 	else
 		GR_SetFontColor( RGB( 255, 255, 255 ) );
@@ -1633,7 +1670,7 @@ int UI_InputSliderControl( menuSlider_t *pSlider, menuFramework_t *menu, u32 but
 {
 	static u64 delayTimer;
 	static u64 lastInput;
-	u64 pos;
+	s64 pos;
 
 	// if no input for over 250 msecs reset press mode
 	if( tnTimeMsec() > lastInput + 250 )
@@ -1787,7 +1824,8 @@ void UI_DrawSliderControl( menuSlider_t *pSlider )
 		nDotRadius	= pSlider->height / 3;
 		nDotY		= nBarPos + nBarWidth / 2;
 		nDotX		= pSlider->generic.x + 
-					  ((float) pSlider->pos / (pSlider->maxs - pSlider->mins)) * pSlider->width;
+					  ((float) fabsf( pSlider->pos - pSlider->mins ) / (pSlider->maxs - pSlider->mins))
+					  * pSlider->width;
 
 		GR_DrawFillRect( pSlider->generic.x, nBarPos, pSlider->width, nBarWidth );
 	}
@@ -1799,7 +1837,8 @@ void UI_DrawSliderControl( menuSlider_t *pSlider )
 		nDotRadius	= pSlider->width / 3;
 		nDotX		= nBarPos + nBarWidth / 2;
 		nDotY		= pSlider->generic.y + pSlider->height -
-					  ((float) pSlider->pos / (pSlider->maxs - pSlider->mins)) * pSlider->height;
+					  ((float) fabsf( pSlider->pos - pSlider->mins ) / (pSlider->maxs - pSlider->mins))
+					  * pSlider->height;
 
 		GR_DrawFillRect( nBarPos, pSlider->generic.y, nBarWidth, pSlider->height );
 	}
@@ -1811,7 +1850,7 @@ void UI_DrawSliderControl( menuSlider_t *pSlider )
 	GR_SetBlendMode( GR_BLEND_CONSTANT );
 
 	// color green if control has focus
-	if( UI_GetSelectedItem(uis.active) == pSlider )
+	if( UI_GetSelectedItem(pSlider->generic.parent) == pSlider )
 		GR_SetDrawColor( RGB(0, 255, 0) );
 	else
 		GR_SetDrawColor( RGB(255, 255, 255) );
@@ -1824,7 +1863,7 @@ void UI_DrawSliderControl( menuSlider_t *pSlider )
 // UI_Slider_SetBounds - Set the mins and maxs for Slider
 //
 
-void UI_Slider_SetBounds( menuSlider_t *pSlider, u64 mins, u64 maxs )
+void UI_Slider_SetBounds( menuSlider_t *pSlider, s64 mins, s64 maxs )
 {
 	if( !pSlider )
 		return;
@@ -1837,7 +1876,7 @@ void UI_Slider_SetBounds( menuSlider_t *pSlider, u64 mins, u64 maxs )
 // UI_Slider_SetPos - Set the position of indicator in Slider Control
 //
 
-void UI_Slider_SetPos( menuSlider_t *pSlider, u64 pos )
+void UI_Slider_SetPos( menuSlider_t *pSlider, s64 pos )
 {
 	if( !pSlider )
 		return;
@@ -1855,7 +1894,7 @@ void UI_Slider_SetPos( menuSlider_t *pSlider, u64 pos )
 // UI_Slider_GetPos - Retrieves the position of indicator of Slider
 //
 
-u64 UI_Slider_GetPos( const menuSlider_t *pSlider )
+s64 UI_Slider_GetPos( const menuSlider_t *pSlider )
 {
 	if( !pSlider )
 		return 0;
@@ -1888,4 +1927,308 @@ u64 UI_Slider_GetStepSize( const menuSlider_t *pSlider )
 		return 0;
 
 	return pSlider->stepSize;
+}
+
+
+//////////////////////////////////////////////////////////////////////////////
+// RADIOBUTTON CONTROL
+
+//
+// UI_InitRadioControl - Initializes Radiobutton Control
+//
+
+void UI_InitRadioControl( menuRadio_t *pRadio )
+{
+	if( !pRadio )
+		return;
+
+	// nothing to do here
+}
+
+//
+// UI_DrawRadioControl - Handles drawing of radio control
+//
+
+void UI_DrawRadioControl( menuRadio_t *pRadio )
+{
+	int		old, color;
+	int		xPos;
+	int		nWidth;
+	char	*pStr;
+
+	if( !pRadio )
+		return;
+
+	// draw selected item green
+	if( UI_GetSelectedItem( pRadio->generic.parent ) == pRadio ) {
+		old = GR_SetFontColor( RGB(0, 255, 0 ) );
+		GR_DrawTextExt( pRadio->generic.x, pRadio->generic.y, pRadio->text, GR_FONT_SMALL );
+		GR_SetFontColor( old );
+	}
+	else {
+		// draw disabled control red
+		if( (pRadio->generic.flags & CFL_INACTIVE)  )
+			old = GR_SetFontColor( RGB(255, 0, 0) );
+		else
+			old = GR_SetFontColor( pRadio->color );
+
+		GR_DrawTextExt( pRadio->generic.x, pRadio->generic.y, pRadio->text, GR_FONT_SMALL );
+		GR_SetFontColor( old );
+	}
+
+	// button state
+	if( pRadio->state == RB_STATE_ENABLED ) {
+		pStr	= "<YES>";
+		color	= RGB(0,255,0);
+	}
+	else {
+		pStr	= "<NO>";
+		color	= RGB(255,0,0);
+	}
+
+	old = GR_SetFontColor( color );
+
+	nWidth	= GR_GetStringWidth( pStr, GR_FONT_SMALL );
+
+	xPos	= pRadio->generic.x + pRadio->width;
+	xPos	= xPos - nWidth / 2;
+
+	GR_DrawTextExt( xPos, pRadio->generic.y, pStr, GR_FONT_SMALL );
+	GR_SetFontColor( old );
+}
+
+//
+// UI_InputRadioControl - Handles User Input for Radiobutton Control
+//
+// Returns 1 if button was handled.
+//
+
+int UI_InputRadioControl( menuRadio_t *pRadio, menuFramework_t *menu, u32 buttons )
+{
+	// flip state
+	if( buttons & PAD_CROSS ) {
+		pRadio->state ^= 1;
+
+		pRadio->generic.parent->callback( pRadio->generic.parent, MSG_CONTROL, NOT_RB_FLIPPED, pRadio->generic.id );
+		UI_Refresh();
+		return 1;
+	}
+
+	return 0;
+}
+
+//
+// UI_Radio_SetState - Sets the state of a radio button
+//
+
+void UI_Radio_SetState( menuRadio_t *pRadio, int state )
+{
+	if( !pRadio )
+		return;
+
+	if( state != RB_STATE_DISABLED && state != RB_STATE_ENABLED )
+		return;
+
+	pRadio->state = state;
+}
+
+//
+// UI_Radio_GetState - Retrieves the current state of a radio button
+//
+
+int UI_Radio_GetState( const menuRadio_t *pRadio )
+{
+	if( !pRadio )
+		return 0;
+
+	return pRadio->state;
+}
+
+
+//////////////////////////////////////////////////////////////////////////////
+// COMBOBOX CONTROL
+
+//
+// UI_InitComboControl - Initializes Combobox Control
+//
+
+void UI_InitComboControl( menuCombo_t *pCombo )
+{
+	if( !pCombo )
+		return;
+
+	pCombo->numEntries	= 0;
+	pCombo->selected	= 0;
+	pCombo->pEntries	= NULL;
+}
+
+//
+// UI_DrawComboControl - Handles drawing of combo control
+//
+
+void UI_DrawComboControl( menuCombo_t *pCombo )
+{
+	int old;
+	int xPos, nWidth;
+
+	if( !pCombo )
+		return;
+
+	// draw selected item green
+	if( UI_GetSelectedItem( pCombo->generic.parent ) == pCombo )
+		old = GR_SetFontColor( RGB(0, 255, 0 ) );
+	else
+		old = GR_SetFontColor( pCombo->color );
+
+	if( pCombo->text )
+		GR_DrawTextExt( pCombo->generic.x, pCombo->generic.y, pCombo->text, GR_FONT_SMALL );
+
+	if( pCombo->selected >= pCombo->numEntries )
+		return;
+
+	nWidth	= GR_GetStringWidth( pCombo->pEntries[ pCombo->selected ].string, GR_FONT_SMALL );
+	xPos	= pCombo->generic.x + pCombo->width;
+	xPos	= xPos - nWidth / 2;
+
+	GR_DrawTextExt( xPos, pCombo->generic.y, pCombo->pEntries[ pCombo->selected ].string,
+					GR_FONT_SMALL );
+
+	GR_SetFontColor(old);
+}
+
+//
+// UI_InputComboControl - Handles User Input for Radiobutton Control
+//
+// Returns 1 if button was handled.
+//
+
+int UI_InputComboControl( menuCombo_t *pCombo, menuFramework_t *menu, u32 buttons )
+{
+	if( buttons & PAD_CROSS )
+	{
+		pCombo->selected++;
+
+		if( pCombo->selected >= pCombo->numEntries )
+			pCombo->selected = 0;
+
+		pCombo->generic.parent->callback( pCombo->generic.parent, MSG_CONTROL, NOT_CB_SEL_CHANGED, pCombo->generic.id );
+
+		UI_Refresh();
+		return 1;
+	}
+
+	return 0;
+}
+
+//
+// UI_Combo_AddString - Adds a string to a Combobox
+//
+
+void UI_Combo_AddString( menuCombo_t *pCombo, const char *pStr )
+{
+	comboEntry_t *pThis;
+
+	if( !pCombo || !pStr )
+		return;
+
+	pCombo->pEntries = (comboEntry_t*) realloc( pCombo->pEntries, (1 + pCombo->numEntries) *
+												sizeof(comboEntry_t) );
+
+	if( !pCombo->pEntries )
+		return;
+
+	pThis = pCombo->pEntries + pCombo->numEntries;
+
+	pThis->next = NULL;
+
+	if( pCombo->numEntries > 0 ) {
+		pThis->prev = &pCombo->pEntries[ pCombo->numEntries - 1 ];
+		pCombo->pEntries[ pCombo->numEntries - 1 ].next = pThis;
+	}
+	else {
+		pThis->prev = NULL;
+	}
+
+	pThis->string = (char*) malloc( strlen(pStr) + 1 );
+
+	if( !pThis->string )
+		return;
+
+	strcpy( pThis->string, pStr );
+
+	pCombo->numEntries++;
+
+}
+
+//
+// UI_Combo_Clean - Removes all entries from combobox and frees up memory
+//
+
+void UI_Combo_Clean( menuCombo_t *pCombo )
+{
+	comboEntry_t *t, *p;
+
+	p = pCombo->pEntries;
+
+	while(p) {
+		t = p;
+		p = p->next;
+
+		if(t->string)
+			free(t->string);
+
+		free(t);
+	}
+
+	pCombo->numEntries	= 0;
+	pCombo->selected	= 0;
+	pCombo->pEntries	= NULL;
+}
+
+//
+// UI_Combo_GetSelected - Retrieves the selected string in a combobox
+//
+
+const char *UI_Combo_GetSelected( const menuCombo_t *pCombo )
+{
+	return pCombo->pEntries[ pCombo->selected ].string;
+}
+
+//
+// UI_Combo_Select - Selects an entry in a combobox by its index
+//
+
+int UI_Combo_Select( menuCombo_t *pCombo, int nIndex )
+{
+	if( !pCombo )
+		return -1;
+
+	if( nIndex < 0 || nIndex >= pCombo->numEntries )
+		return -1;
+
+	pCombo->selected = nIndex;
+	return 1;
+}
+
+//
+// UI_Combo_SelectByName - Selects an entry in a combobox by its name
+//
+
+int UI_Combo_SelectByName( menuCombo_t *pCombo, const char *pName )
+{
+	int i;
+	const comboEntry_t *p;
+
+	i = 0;
+	p = pCombo->pEntries;
+
+	while(p) {
+		if( !strcmp( p->string, pName ) )
+			return UI_Combo_Select( pCombo, i );
+
+		i++;
+		p = p->next;
+	}
+
+	return -1;
 }

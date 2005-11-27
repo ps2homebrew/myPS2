@@ -37,7 +37,10 @@ EE_OBJS =	$(EE_OBJS_DIR)/main.o			\
 			$(EE_OBJS_DIR)/ps2fs.o		\
 			$(EE_OBJS_DIR)/poweroff.o		\
 			$(EE_OBJS_DIR)/cdvd.o			\
-			$(EE_OBJS_DIR)/npm_usbd.o
+			$(EE_OBJS_DIR)/npm_usbd.o		\
+			$(EE_OBJS_DIR)/ps2ip.o			\
+			$(EE_OBJS_DIR)/ps2smap.o		\
+			$(EE_OBJS_DIR)/ps2ftpd.o
 
 EE_LIBS	=	-lc			\
 			-lpacket	\
@@ -91,6 +94,15 @@ $(EE_OBJS_DIR)/cdvd.s:
 
 $(EE_OBJS_DIR)/npm_usbd.s:
 	bin2s irx/NPM_USBD.IRX $(EE_OBJS_DIR)/npm_usbd.s npm_usbd_irx
+
+$(EE_OBJS_DIR)/ps2ip.s:
+	bin2s irx/PS2IP.IRX $(EE_OBJS_DIR)/ps2ip.s ps2ip_irx
+
+$(EE_OBJS_DIR)/ps2smap.s:
+	bin2s irx/PS2SMAP.IRX $(EE_OBJS_DIR)/ps2smap.s ps2smap_irx
+
+$(EE_OBJS_DIR)/ps2ftpd.s:
+	bin2s ps2ftpd/bin/ps2ftpd.irx $(EE_OBJS_DIR)/ps2ftpd.s ps2ftpd_irx
 
 clean:
 	rm -f -r $(EE_OBJS_DIR) $(EE_BIN_DIR)

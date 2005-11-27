@@ -51,6 +51,18 @@ Package=<4>
 
 ###############################################################################
 
+Project: "ps2ftpd"=..\ps2ftpd\ps2ftpd.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
 Project: "usb_irx"=..\usb_irx\usb_irx.dsp - Package Owner=<4>
 
 Package=<5>

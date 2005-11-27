@@ -46,6 +46,9 @@ extern u8	*poweroff_irx;
 extern u8	*cdvd_irx;
 extern u8	*npm_usbd_irx;
 extern u8	*usb_mass_irx;
+extern u8	*ps2ip_irx;
+extern u8	*ps2smap_irx;
+extern u8	*ps2ftpd_irx;
 
 extern int	size_iomanx_irx;
 extern int	size_filexio_irx;
@@ -57,6 +60,9 @@ extern int	size_poweroff_irx;
 extern int	size_cdvd_irx;
 extern int	size_npm_usbd_irx;
 extern int	size_usb_mass_irx;
+extern int	size_ps2ip_irx;
+extern int	size_ps2smap_irx;
+extern int	size_ps2ftpd_irx;
 
 typedef enum {
 	BOOT_HOST,
@@ -92,6 +98,11 @@ int MC_Available( int nPort );
 
 void USB_Init( void );
 int USB_Available( void );
+
+void NET_Init( const char *path );
+int NET_Available( void );
+void FTP_Init( void );
+int FTP_Available( void );
 
 //
 // timer.c

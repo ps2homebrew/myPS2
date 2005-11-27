@@ -148,7 +148,7 @@ void UI_InitPicViewMenu( void )
 	s_picview.Precache.size				= GR_FONT_SMALL;
 	s_picview.Precache.color			= RGB(255, 255, 255);
 
-	if( sysConf.tbnCaching == 0 )
+	if( !SC_GetValueForKey_Int( "tbn_caching", NULL ) )
 		s_picview.Precache.generic.flags = CFL_INACTIVE;
 
 	s_picview.SortName.generic.type		= MENU_CONTROL_TEXT;
@@ -183,7 +183,7 @@ void UI_InitPicViewMenu( void )
 	s_picview.GoBack.generic.x			= 35;
 	s_picview.GoBack.generic.y			= 250;
 	s_picview.GoBack.generic.id			= ID_GOBACK;
-	s_picview.GoBack.text				= "Go back";
+	s_picview.GoBack.text				= "Go Back";
 	s_picview.GoBack.size				= GR_FONT_SMALL;
 	s_picview.GoBack.color				= RGB(255, 255, 255);
 
@@ -674,14 +674,13 @@ int UI_CreateThumbnail( const fileInfo_t *pFile, const char *pCurrentDir, IMG_HA
 	u8			*pResData;
 	int			nRet;
 
-	if( !pFile || !pCurrentDir || !pHandle )
+	if( !pFile || !pCurrentDir )
 		return 0;
-
-	memset( pHandle, 0, sizeof(IMG_HANDLE) );
 
 	// just use the precached folder image
 	if( pFile->flags & FLAG_DIRECTORY ) {
-		*pHandle = s_picview.hFolderImg;
+		if( pHandle )
+			*pHandle = s_picview.hFolderImg;
 		return 1;
 	}
 
@@ -818,7 +817,8 @@ int UI_CreateThumbnail( const fileInfo_t *pFile, const char *pCurrentDir, IMG_HA
 	UI_TbnCacheSave( pFile, pCurrentDir, nWidth, nHeight, pResData );
 
 	// upload thumbnail image to video ram
-	GR_LoadImage( pHandle, pResData, nWidth, nHeight, GR_PSM_24 );
+	if( pHandle )
+		GR_LoadImage( pHandle, pResData, nWidth, nHeight, GR_PSM_24 );
 
 	jpgClose(pJpg);
 	free(pRaw);
@@ -847,7 +847,7 @@ int UI_TbnCacheLoad( const fileInfo_t *pFile, const char *pCurrentDir, IMG_HANDL
 	int			nSize;
 
 	// user doesn't have thumbnail caching enabled
-	if( sysConf.tbnCaching == 0 )
+	if( !SC_GetValueForKey_Int( "tbn_caching", NULL ) )
 		return 0;
 
 	// user doesn't have a HDD and thumbnail caching shouldn't
@@ -855,11 +855,9 @@ int UI_TbnCacheLoad( const fileInfo_t *pFile, const char *pCurrentDir, IMG_HANDL
 	if( HDD_Available() != HDD_AVAIL )
 		return 0;
 
-	if( !sysConf.tbnCachePath[0] )
-		return 0;
-
 	// build path to TBN file
-	strcpy( strPath, sysConf.tbnCachePath );
+	if( !SC_GetValueForKey_Str( "tbn_cache_path", strPath ) )
+		return 0;
 
 	if( strPath[ strlen(strPath) - 1 ] != '/' )
 		strcat( strPath, "/" );
@@ -933,7 +931,8 @@ int UI_TbnCacheLoad( const fileInfo_t *pFile, const char *pCurrentDir, IMG_HANDL
 	FileClose( fHandle );
 
 	// upload image
-	GR_LoadImage( pHandle, pImgData, tbnHeader.width, tbnHeader.height, GR_PSM_24 );
+	if( pHandle )
+		GR_LoadImage( pHandle, pImgData, tbnHeader.width, tbnHeader.height, GR_PSM_24 );
 
 	free(pImgData);
 	return 1;
@@ -954,18 +953,16 @@ int UI_TbnCacheSave( const fileInfo_t *pFile, const char *pCurrentDir, int nWidt
 	char		strPath[256], strTmp[256];
 	char		*pStr;
 
-	if( sysConf.tbnCaching == 0 )
+	if( !SC_GetValueForKey_Int( "tbn_caching", NULL ) )
 		return 0;
 
-	if( !sysConf.tbnCachePath[0] )
+	if( !SC_GetValueForKey_Str( "tbn_cache_path", strPath ) )
 		return 0;
 
 	if( HDD_Available() != HDD_AVAIL )
 		return 0;
 
 	// build path to TBN file
-	strcpy( strPath, sysConf.tbnCachePath );
-
 	if( strPath[ strlen(strPath) - 1 ] != '/' )
 		strcat( strPath, "/" );
 
@@ -1022,11 +1019,14 @@ int UI_TbnCacheSave( const fileInfo_t *pFile, const char *pCurrentDir, int nWidt
 typedef struct {
 	menuFramework_t	*menu;
 
+	menuText_t		OK;
 	menuText_t		Text;
 	menuProgress_t	Progress;
 } uiPopupThumb_t;
 
 static uiPopupThumb_t s_popupthumb;
+
+#define ID_OK		1
 
 //
 // UI_InitPopupThumb - Initializes Thumbnail Popup
@@ -1037,29 +1037,39 @@ void UI_InitPopupThumb( void )
 	int i;
 	u64 totalSize = 0;
 
-	s_popupthumb.menu				= &uis.menus[ MENU_POPUP_THUMB ];
+	s_popupthumb.menu					= &uis.menus[ MENU_POPUP_THUMB ];
 
-	s_popupthumb.menu->callback		= UI_PopupThumbCallback;
-	s_popupthumb.menu->input		= NULL;
-	s_popupthumb.menu->numItems		= 0;
+	s_popupthumb.menu->callback			= UI_PopupThumbCallback;
+	s_popupthumb.menu->input			= NULL;
+	s_popupthumb.menu->numItems			= 0;
+
+	s_popupthumb.OK.generic.type		= MENU_CONTROL_TEXT;
+	s_popupthumb.OK.generic.flags		= 0;
+	s_popupthumb.OK.generic.x			= 370;
+	s_popupthumb.OK.generic.y			= 245;
+	s_popupthumb.OK.generic.id			= ID_OK;
+	s_popupthumb.OK.text				= "OK";
+	s_popupthumb.OK.color				= RGB(255,255,255);
+	s_popupthumb.OK.size				= GR_FONT_SMALL;
 
 	s_popupthumb.Text.generic.type		= MENU_CONTROL_TEXT;
-	s_popupthumb.Text.generic.flags		= 0;
-	s_popupthumb.Text.generic.x			= 200;
-	s_popupthumb.Text.generic.y			= 100;
-	s_popupthumb.Text.text				= "Generating Thumbnails";
+	s_popupthumb.Text.generic.flags		= CFL_INACTIVE | CFL_FORCECOLOR;
+	s_popupthumb.Text.generic.x			= 290;
+	s_popupthumb.Text.generic.y			= 165;
+	s_popupthumb.Text.text				= "Generating Thumbnails...";
 	s_popupthumb.Text.color				= RGB(255,255,255);
 	s_popupthumb.Text.size				= GR_FONT_SMALL;
 
 	s_popupthumb.Progress.generic.type	= MENU_CONTROL_PROGRESS;
 	s_popupthumb.Progress.generic.flags	= CFL_INACTIVE;
-	s_popupthumb.Progress.generic.x		= 200;
-	s_popupthumb.Progress.generic.y		= 130;
-	s_popupthumb.Progress.width			= 200;
+	s_popupthumb.Progress.generic.x		= 270;
+	s_popupthumb.Progress.generic.y		= 205;
+	s_popupthumb.Progress.width			= 240;
 	s_popupthumb.Progress.height		= 20;
 	s_popupthumb.Progress.textColor		= RGB(255,255,255);
 	s_popupthumb.Progress.barColor		= RGBA(0,255,0, 32);
 
+	UI_AddItemToMenu( s_popupthumb.menu, &s_popupthumb.OK );
 	UI_AddItemToMenu( s_popupthumb.menu, &s_popupthumb.Text );
 	UI_AddItemToMenu( s_popupthumb.menu, &s_popupthumb.Progress );
 
@@ -1067,7 +1077,20 @@ void UI_InitPopupThumb( void )
 		totalSize += fileInfo[i].size;
 
 	UI_Progress_SetBounds( &s_popupthumb.Progress, 0, totalSize );
-	UI_Progress_SetPosition( &s_popupthumb.Progress, 64 );
+	UI_Progress_SetPosition( &s_popupthumb.Progress, 0 );
+	UI_Refresh();
+
+	for( i = 0; i < numFiles; i++ )
+	{
+		UI_CreateThumbnail( &fileInfo[i], currentDir, NULL );
+
+		totalSize = UI_Progress_GetPosition( &s_popupthumb.Progress );
+		totalSize += fileInfo[i].size;
+
+		UI_Progress_SetPosition( &s_popupthumb.Progress, totalSize );
+		UI_Refresh();
+	}
+
 }
 
 //
@@ -1076,6 +1099,27 @@ void UI_InitPopupThumb( void )
 
 int UI_PopupThumbCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long sParam )
 {
+	switch( nMsg )
+	{
+		case MSG_DRAW:
+			// draw background
+			GR_SetAlpha( 0.75f );
+			GR_SetBlendMode( GR_BLEND_CONSTANT );
+			GR_SetDrawColor( RGB(10, 49, 112) );
+			GR_DrawRoundRect( 240, 150, 300, 130 );
+			GR_SetBlendMode( GR_BLEND_NONE );
+			return 0; // return 0 so controls are still being drawn
+
+		case MSG_CONTROL:
+			switch( sParam )
+			{
+				case ID_OK:
+					UI_PopupClose( pMenu );
+					return 1;
+			}
+			break;
+	}
+
 	return 0;
 }
 

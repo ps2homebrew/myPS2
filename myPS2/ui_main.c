@@ -93,7 +93,7 @@ void UI_InitMainMenu( void )
 	s_main.ElfLoader.color				= RGB(255, 255, 255);
 
 	s_main.Options.generic.type			= MENU_CONTROL_TEXT;
-	s_main.Options.generic.flags		= CFL_INACTIVE; // disabled for now
+	s_main.Options.generic.flags		= 0;
 	s_main.Options.generic.x			= 35;
 	s_main.Options.generic.y			= 140;
 	s_main.Options.generic.id			= ID_OPTIONS;
@@ -203,4 +203,7 @@ void UI_MainDraw( void )
 	GR_DrawTextExt( 220, 320 + offset, "- Ivaylo Byalkov", GR_FONT_SMALL );
 	GR_DrawTextExt( 220, 335 + offset, "- Pixel", GR_FONT_SMALL );
 	GR_DrawTextExt( 220, 350 + offset, "- Ole", GR_FONT_SMALL );
+	GR_DrawTextExt( 220, 365 + offset, "- Hiryu and Sjeep", GR_FONT_SMALL );
+	GR_DrawTextExt( 220, 380 + offset, "- Jesper Svennevid", GR_FONT_SMALL );
+	GR_DrawTextExt( 220, 395 + offset, "- EP", GR_FONT_SMALL );
 }

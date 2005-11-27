@@ -20,7 +20,13 @@ IOP_INCS := -I$(PS2SDK)/iop/include -I$(PS2SDK)/common/include \
 	-I. $(IOP_INCS)
 
 # C compiler flags
-IOP_CFLAGS := $(CFLAGS_TARGET) -O2 -G0 -c $(IOP_INCS) $(IOP_CFLAGS)
+# !!!turned off -O2 optimization for now as it causes weird
+# problems with ps2ftpd (mc crash) (compiled with iop-gcc v3.2.2)
+# see this thread
+# http://forums.ps2dev.org/viewtopic.php?t=2198&sid=49416357ad68065c579e9ff359cfa87f
+# IOP_CFLAGS := $(CFLAGS_TARGET) -O2 -G0 -c $(IOP_INCS) $(IOP_CFLAGS)
+#
+IOP_CFLAGS := $(CFLAGS_TARGET) -G0 -c $(IOP_INCS) $(IOP_CFLAGS)
 
 # linker flags
 IOP_LDFLAGS := $(LDFLAGS_TARGET) -nostdlib -L$(PS2SDK)/iop/lib $(IOP_LDFLAGS)

@@ -107,8 +107,10 @@ enum {
 	MENU_MANAGER,
 	MENU_ELFLOADER,
 	MENU_OPTIONS,
+	MENU_NETWORK,
+	MENU_OPTIONS_EDIT,
 
-	MENU_POPUP_THUMB,		// popup displayed while thumbnails are generated
+	MENU_POPUP_THUMB,
 
 	MENU_NUM_MENUS
 };
@@ -141,7 +143,7 @@ typedef struct {
 
 typedef struct {
 	menuCommon_t	generic;
-	char			*text;
+	const char		*text;
 	int				size;
 	int				color;
 } menuText_t;
@@ -214,11 +216,40 @@ typedef struct {
 
 	int				barColor;
 
-	u64				mins;
-	u64				maxs;
-	u64				pos;
+	s64				mins;
+	s64				maxs;
+	s64				pos;
 	u64				stepSize;
 } menuSlider_t;
+
+typedef struct {
+	menuCommon_t	generic;
+	int				width;
+	int				state;
+	const char		*text;
+	int				color;
+} menuRadio_t;
+
+typedef struct comboEntry_s comboEntry_t;
+
+struct comboEntry_s {
+	char			*string;
+
+	comboEntry_t	*next;
+	comboEntry_t	*prev;
+};
+
+typedef struct {
+	menuCommon_t	generic;
+	int				width;
+	const char		*text;
+	int				color;
+
+	int				selected;
+	int				numEntries;
+	comboEntry_t	*pEntries;
+} menuCombo_t;
+
 
 #define UI_DIRVIEW_MARGIN	20		// 20 pixel margin
 #define UI_EDIT_MARGIN		20
@@ -231,6 +262,8 @@ typedef enum {
 	MENU_CONTROL_PROGRESS,		// Progress Bar Control
 	MENU_CONTROL_EDITFIELD,		// Editfield with a keyboard mask
 	MENU_CONTROL_SLIDER,		// A movable Slider Control
+	MENU_CONTROL_RADIO,			// Radio Button Control
+	MENU_CONTROL_COMBO			// Combo dropdown like Control
 
 } menuContols_e;
 
@@ -244,6 +277,10 @@ typedef enum {
 //
 #define CFL_SL_VERTICAL		0x00000020
 #define CFL_SL_HORIZONTAL	0x00000040
+
+// Editfield Flags
+//
+#define	CFL_EF_NOBKG		0x00000020		// No background
 
 //
 // Notification Messages
@@ -268,12 +305,25 @@ typedef enum {
 //
 #define NOT_SL_POS_CHANGED			0x00000002
 
+// Radiobutton Notifications
+//
+#define NOT_RB_FLIPPED				0x00000002
+
+// Combobox Notifications
+//
+#define NOT_CB_SEL_CHANGED			0x00000002
+
 typedef enum {
 	TRI_UP,
 	TRI_RIGHT,
 	TRI_DOWN,
 	TRI_LEFT
 } triBtnDir_e;
+
+typedef enum {
+	RB_STATE_DISABLED,
+	RB_STATE_ENABLED
+} rbState_e;
 
 void UI_Init( void );
 int UI_AddItemToMenu( menuFramework_t *menu, void *item );
@@ -321,11 +371,26 @@ void UI_Editfield_Clear( menuEditfield_t *pEditfield );
 void UI_InitSliderControl( menuSlider_t *pSlider );
 int UI_InputSliderControl( menuSlider_t *pSlider, menuFramework_t *menu, u32 buttons );
 void UI_DrawSliderControl( menuSlider_t *pSlider );
-void UI_Slider_SetBounds( menuSlider_t *pSlider, u64 mins, u64 maxs );
-void UI_Slider_SetPos( menuSlider_t *pSlider, u64 pos );
-u64 UI_Slider_GetPos( const menuSlider_t *pSlider );
+void UI_Slider_SetBounds( menuSlider_t *pSlider, s64 mins, s64 maxs );
+void UI_Slider_SetPos( menuSlider_t *pSlider, s64 pos );
+s64 UI_Slider_GetPos( const menuSlider_t *pSlider );
 void UI_Slider_SetStepSize( menuSlider_t *pSlider, u64 stepSize );
 u64 UI_Slider_GetStepSize( const menuSlider_t *pSlider );
+
+void UI_InitRadioControl( menuRadio_t *pRadio );
+void UI_DrawRadioControl( menuRadio_t *pRadio );
+int UI_InputRadioControl( menuRadio_t *pRadio, menuFramework_t *menu, u32 buttons );
+void UI_Radio_SetState( menuRadio_t *pRadio, int state );
+int UI_Radio_GetState( const menuRadio_t *pRadio );
+
+void UI_InitComboControl( menuCombo_t *pCombo );
+void UI_DrawComboControl( menuCombo_t *pCombo );
+int UI_InputComboControl( menuCombo_t *pCombo, menuFramework_t *menu, u32 buttons );
+void UI_Combo_AddString( menuCombo_t *pCombo, const char *pStr );
+void UI_Combo_Clean( menuCombo_t *pCombo );
+const char *UI_Combo_GetSelected( const menuCombo_t *pCombo );
+int UI_Combo_Select( menuCombo_t *pCombo, int nIndex );
+int UI_Combo_SelectByName( menuCombo_t *pCombo, const char *pName );
 
 //
 // ui_main.c
@@ -348,7 +413,7 @@ typedef struct {
 } TBN_HEADER;
 
 void UI_InitPicViewMenu( void );
-int UI_PicViewCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long lParam );
+int UI_PicViewCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long sParam );
 void UI_PicViewDraw( void );
 void UI_UpdateImageGrid( void );
 void UI_PicViewSetDir( const char *path );
@@ -413,7 +478,14 @@ void UI_CreatePartDraw( void );
 
 void UI_InitOptionsMenu( void );
 int UI_OptionsCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long sParam );
-
 void UI_OptionsDraw( void );
+void UI_OptionsLoad( void );
+void UI_InitNetworkMenu( void );
+int UI_NetworkCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long sParam );
+void UI_NetworkDraw( void );
+void UI_OpenEditMenu( const char *pHeadline, const char *pEditValue, int GoBackId );
+void UI_InitEditMenu( void );
+int UI_EditCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long sParam );
+void UI_EditDraw( void );
 
 #endif

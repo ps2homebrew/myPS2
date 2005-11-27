@@ -116,7 +116,7 @@ void UI_InitElfLoaderMenu( void )
 	s_elfloader.EditField.generic.id		= ID_EDITFIELD;
 	s_elfloader.EditField.width				= 400;
 	s_elfloader.EditField.height			= 200;
-	s_elfloader.EditField.color				= RGB(81, 112, 164);
+	s_elfloader.EditField.color				= RGBA(81, 112, 164, 32);
 
 	// add items to menu container
 	UI_AddItemToMenu( s_elfloader.menu, &s_elfloader.SelectElf );

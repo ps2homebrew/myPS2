@@ -31,24 +31,35 @@ MA  02110-1301, USA.
 #ifndef _SYSCONF_H
 #define _SYSCONF_H
 
-typedef struct {
+typedef struct pair_s pair_t;
 
-	// screen
-	int		scr_adjust_x;
-	int		scr_adjust_y;
-	int		scr_mode;
+struct pair_s {
+	char	*key;
+	char	*value;
+	pair_t	*next;
+	pair_t	*prev;
+};
 
-	// Thumbnail Caching
-	int		tbnCaching;
-	char	tbnCachePath[256];
+#define DEFAULT_NET_IP		"192.168.0.10"
+#define DEFAULT_NETMASK		"255.0.0.0"
+#define DEFAULT_GATEWAY_IP	"192.168.0.1"
 
-} sysConf_t;
+#define DEFAULT_FTP_PORT	"21"
+#define DEFAULT_FTP_LOGIN	"myPS2"
+#define DEFAULT_FTP_PASSW	"myPS2"
 
-// so it can be accessed from everywhere
-extern sysConf_t sysConf;
+int SC_LoadConfig( void );
+int SC_SaveConfig( void );
+void SC_Clean( void );
 
-int SysConfLoad( void );
-int SysConfSave( void );
-void SysConfDefault( void );
+const char *SC_GetValueForKey_Str( const char *pKey, char *pResult );
+int SC_GetValueForKey_Int( const char *pKey, int *pResult );
+double SC_GetValueForKey_Double( const char *pKey, double *pResult );
+
+int SC_SetValueForKey_Str( const char *pKey, const char *pValue );
+int SC_SetValueForKey_Int( const char *pKey, int nValue );
+int SC_SetValueForKey_Double( const char *pKey, double fValue );
+
+int SC_ReadBufLine( char **ppBuffer, char *pLine );
 
 #endif

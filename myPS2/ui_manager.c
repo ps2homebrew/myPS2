@@ -185,7 +185,7 @@ void UI_InitManagerMenu( void )
 	s_manager.EditMkdir.generic.id			= ID_EDIT_MKDIR;
 	s_manager.EditMkdir.width				= 400;
 	s_manager.EditMkdir.height				= 200;
-	s_manager.EditMkdir.color				= RGB(81, 112, 164);
+	s_manager.EditMkdir.color				= RGBA(81, 112, 164, 32);
 
 	s_manager.EditRename.generic.type		= MENU_CONTROL_EDITFIELD;
 	s_manager.EditRename.generic.flags		= CFL_INACTIVE | CFL_INVISIBLE;
@@ -194,7 +194,7 @@ void UI_InitManagerMenu( void )
 	s_manager.EditRename.generic.id			= ID_EDIT_RENAME_DIR;
 	s_manager.EditRename.width				= 400;
 	s_manager.EditRename.height				= 200;
-	s_manager.EditRename.color				= RGB(81, 112, 164);
+	s_manager.EditRename.color				= RGBA(81, 112, 164, 32);
 
 	// add items to menu container
 	UI_AddItemToMenu( s_manager.menu, &s_manager.Source );

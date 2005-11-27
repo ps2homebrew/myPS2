@@ -50,6 +50,8 @@ int main( int argc, char *argv[] )
 	u32 padBtns, padBtnsOld;
 	int nTexBufAddr;
 
+	int	nScrMode, nScrVer, nScrHor;
+
 	loadModules( argv[0] );
 	dma_initialize();
 
@@ -60,10 +62,18 @@ int main( int argc, char *argv[] )
 	MC_Init();
 
 	// load system configuration from mc0
-	SysConfLoad();
+	SC_LoadConfig();
+	
+	// initialize network
+	NET_Init( argv[0] );
+
+	// initialize ftp daemon
+	FTP_Init();
 
 	// initialize and setup GR lib
-	GR_Init( sysConf.scr_mode, GR_PSM_32, GR_DOUBLE_BUFFERING );
+	SC_GetValueForKey_Int( "scr_mode", &nScrMode );
+
+	GR_Init( nScrMode, GR_PSM_32, GR_DOUBLE_BUFFERING );
 	nTexBufAddr = GR_SetFrameBuffers( 0 );
 	GR_SetTextureBuffer( nTexBufAddr );
 
@@ -73,7 +83,11 @@ int main( int argc, char *argv[] )
 
 	GR_SetDrawFrame(1);
 	GR_SetDisplayFrame(0);
-	GR_SetScreenAdjust( sysConf.scr_adjust_x, sysConf.scr_adjust_y );
+
+	SC_GetValueForKey_Int( "scr_adjust_x", &nScrHor );
+	SC_GetValueForKey_Int( "scr_adjust_y", &nScrVer );
+
+	GR_SetScreenAdjust( nScrHor, nScrVer );
 
 	// init hdd, usb and gamepad
 	HDD_Init();
@@ -108,6 +122,7 @@ int main( int argc, char *argv[] )
 
 	HDD_ShutDown();
 	GR_ShutDown();
+	SC_Clean();
 	return 0;
 }
 
@@ -116,7 +131,8 @@ int main( int argc, char *argv[] )
 //
 // CDVD module is not loaded at start up because it won't
 // run if there is no disk in the drive. It is loaded later
-// when it is needed.
+// when it is needed. PS2IP and SMAP are loaded later after
+// the config file from mc0 has been loaded.
 //
 
 void loadModules( const char *path )
@@ -248,24 +264,6 @@ void loadModules( const char *path )
 	if( ret < 0 ) {
 #ifdef _DEBUG
 		printf("SifExecModuleBuffer poweroff failed: %d\n", ret);
-#endif
-		SleepThread();
-	}
-
-	// Naplink's USBD module (embedded in ELF)
-	ret = SifExecModuleBuffer( &npm_usbd_irx, size_npm_usbd_irx, 0, NULL, &irx_ret );
-	if( ret < 0 ) {
-#ifdef _DEBUG
-		printf("SifExecModuleBuffer npm_usbd failed: %d\n", ret);
-#endif
-		SleepThread();
-	}
-
-	// USB mass module (embedded in ELF)
-	ret = SifExecModuleBuffer( &usb_mass_irx, size_usb_mass_irx, 0, NULL, &irx_ret );
-	if( ret < 0 ) {
-#ifdef _DEBUG
-		printf("SifExecModuleBuffer usb_mass failed: %d\n", ret);
 #endif
 		SleepThread();
 	}
@@ -533,12 +531,45 @@ int MC_Available( int nPort )
 int nUSBInit = 0;
 
 //
-// USB_Init - initializes USB
+// USB_Init - Loads modules and initializes USB
 //
 
 void USB_Init( void )
 {
-	int nRet;
+	int nRet, irx_ret;
+	char strPath[256];
+
+	// user wants to load a custom usbd.irx
+	if( SC_GetValueForKey_Int( "usbd_irx_custom", NULL ) ) {
+		SC_GetValueForKey_Str( "usbd_irx_path", strPath );
+
+		nRet = SifLoadModule( strPath, 0, NULL );
+		if( nRet < 0 ) {
+#ifdef _DEBUG
+			printf("SifLoadModule %s failed: %d\n", strPath, nRet);
+#endif
+			return;
+		}
+	}
+	else {
+		// load Naplink usbd module
+		nRet = SifExecModuleBuffer( &npm_usbd_irx, size_npm_usbd_irx, 0, NULL, &irx_ret );
+		if( nRet < 0 ) {
+#ifdef _DEBUG
+			printf("SifExecModuleBuffer npm_usbd failed: %d\n", nRet);
+#endif
+			return;
+		}
+	}
+
+	// load USB mass module (embedded in ELF)
+	nRet = SifExecModuleBuffer( &usb_mass_irx, size_usb_mass_irx, 0, NULL, &irx_ret );
+	if( nRet < 0 ) {
+#ifdef _DEBUG
+		printf("SifExecModuleBuffer usb_mass failed: %d\n", nRet);
+#endif
+		return;
+	}
 
 	// init USB RPC stuff
 	nRet = usb_mass_bindRpc();
@@ -565,4 +596,156 @@ int USB_Available( void )
 		return 0;
 
 	return usb_mass_getConnectState(0);
+}
+
+//
+// --------------------- Net initialization and helper functions ---------------------
+//
+
+int nNetInit = 0;
+int nFTPInit = 0;
+
+//
+// NET_Init - Attempts to load PS2IP and SMAP modules
+//
+
+void NET_Init( const char *path )
+{
+	int ret, i, bootmode, irx_ret;
+	char params[256];
+	char string[256];
+
+	// Config.dat should have been loaded by now
+	if( !SC_GetValueForKey_Int( "net_enable", NULL ) )
+		return;
+
+	// figure out boot mode
+	i = strcspn( path, ":" );
+
+	if( !strncmp( path, "host", i ) )
+		bootmode = BOOT_HOST;
+	else if( !strncmp( path, "mc", i ) )
+		bootmode = BOOT_MC;
+	else if( !strncmp( path, "hdd", i ) )
+		bootmode = BOOT_HDD;
+	else
+		bootmode = BOOT_CD;
+
+	// if booting from HOST modules should already be present
+	if( bootmode == BOOT_HOST ) {
+		nNetInit = 1;
+		return;
+	}
+
+	ret = SifExecModuleBuffer( &ps2ip_irx, size_ps2ip_irx, 0, NULL, &irx_ret );
+	if( ret < 0 ) {
+#ifdef _DEBUG
+		printf("SifExecModuleBuffer ps2ip failed: %d\n", ret);
+#endif
+		return;
+	}
+
+	// prepare smap parameters
+	memset( params, 0, sizeof(params) );
+	i = 0;
+
+	SC_GetValueForKey_Str( "net_ip", string );
+	strncpy( &params[i], string, 15 );
+	i += strlen(string) + 1;
+
+	SC_GetValueForKey_Str( "net_netmask", string );
+	strncpy( &params[i], string, 15 );
+	i += strlen(string) + 1;
+
+	SC_GetValueForKey_Str( "net_gateway", string );
+	strncpy( &params[i], string, 15 );
+	i += strlen( string ) + 1;
+
+	// load SMAP module
+	ret = SifExecModuleBuffer( &ps2smap_irx, size_ps2smap_irx, i, &params[0], &irx_ret );
+	if( ret < 0 ) {
+#ifdef _DEBUG
+		printf("SifExecModuleBuffer ps2smap failed: %d\n", ret);
+#endif
+		return;
+	}
+
+	nNetInit = 1;
+}
+
+//
+// NET_Available - Returns 1 if network was successfully initialized
+//
+
+int NET_Available( void )
+{
+	return nNetInit;
+}
+
+//
+// FTP_Init - Attempts to load PS2FTPD module
+//
+
+void FTP_Init( void )
+{
+	int ret, irx_ret, i;
+	char param[128];
+	char list[256];
+
+	if( !NET_Available() )
+		return;
+
+	if( !SC_GetValueForKey_Int( "ftp_daemon", NULL ) )
+		return;
+
+	i = 0;
+	memset( list, 0, sizeof(list) );
+
+	strcpy( &list[i], "-port" );
+	i += strlen("-port") + 1;
+
+	SC_GetValueForKey_Str( "ftp_port", param );
+	strcpy( &list[i], param );
+	i += strlen(param) + 1;
+
+	if( SC_GetValueForKey_Int( "ftp_anonymous", NULL ) ) {
+		strcpy( &list[i], "-anonymous" );
+		i += strlen("-anonymous") + 1;
+	}
+	else {
+		strcpy( &list[i], "-user" );
+		i += strlen("-user") + 1;
+
+		SC_GetValueForKey_Str( "ftp_login", param );
+		strcpy( &list[i], param );
+		i += strlen(param) + 1;
+
+		strcpy( &list[i], "-pass" );
+		i += strlen("-pass") + 1;
+
+		SC_GetValueForKey_Str( "ftp_password", param );
+		strcpy( &list[i], param );
+		i += strlen(param) + 1;
+	}
+
+	// FIXME : fix "Null Buffer Warning" in ps2ftpd.irx
+	ret = SifExecModuleBuffer( &ps2ftpd_irx, size_ps2ftpd_irx, i, &list[0], &irx_ret );
+	if( ret < 0 )
+	{
+#ifdef _DEBUG
+		printf("SifExexModuleBuffer ps2ftpd failed: %d\n", ret);
+#endif
+		return;
+	}
+
+	nFTPInit = 1;
+}
+
+//
+// FTP_Available - Returns 1 if ftp daemon was successfully initialized
+//
+
+int FTP_Available( void )
+{
+	return nFTPInit;
 }
