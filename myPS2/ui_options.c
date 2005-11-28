@@ -31,10 +31,12 @@ MA  02110-1301, USA.
 
 #include <tamtypes.h>
 #include <ui.h>
+#include <libhdd.h>
 
 #define ID_SAVE			1
 #define	ID_LOAD			2
 #define ID_NETWORK		3
+#define ID_POWEROFF		14
 #define ID_GOBACK		4
 
 #define ID_SCR_MODE		5
@@ -56,6 +58,7 @@ typedef struct {
 	menuText_t		Save;
 	menuText_t		Load;
 	menuText_t		Network;
+	menuText_t		PowerOff;
 	menuText_t		GoBack;
 
 	menuCombo_t		scrMode;
@@ -117,10 +120,19 @@ void UI_InitOptionsMenu( void )
 	s_options.Network.color				= RGB(255, 255, 255);
 	s_options.Network.size				= GR_FONT_SMALL;
 
+	s_options.PowerOff.generic.type		= MENU_CONTROL_TEXT;
+	s_options.PowerOff.generic.flags	= 0;
+	s_options.PowerOff.generic.x		= 35;
+	s_options.PowerOff.generic.y		= 130;
+	s_options.PowerOff.generic.id		= ID_POWEROFF;
+	s_options.PowerOff.text				= "PowerOff PS2";
+	s_options.PowerOff.color			= RGB(255, 255, 255);
+	s_options.PowerOff.size				= GR_FONT_SMALL;
+
 	s_options.GoBack.generic.type		= MENU_CONTROL_TEXT;
 	s_options.GoBack.generic.flags		= 0;
 	s_options.GoBack.generic.x			= 35;
-	s_options.GoBack.generic.y			= 140;
+	s_options.GoBack.generic.y			= 170;
 	s_options.GoBack.generic.id			= ID_GOBACK;
 	s_options.GoBack.text				= "Go Back";
 	s_options.GoBack.color				= RGB(255, 255, 255);
@@ -129,6 +141,7 @@ void UI_InitOptionsMenu( void )
 	UI_AddItemToMenu( s_options.menu, &s_options.Save );
 	UI_AddItemToMenu( s_options.menu, &s_options.Load );
 	UI_AddItemToMenu( s_options.menu, &s_options.Network );
+	UI_AddItemToMenu( s_options.menu, &s_options.PowerOff );
 	UI_AddItemToMenu( s_options.menu, &s_options.GoBack );
 
 	// General Settings
@@ -287,6 +300,10 @@ int UI_OptionsCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, u
 
 				case ID_NETWORK:
 					UI_SetActiveMenu(MENU_NETWORK);
+					return 1;
+
+				case ID_POWEROFF:
+					hddPowerOff();
 					return 1;
 
 				case ID_GOBACK:
