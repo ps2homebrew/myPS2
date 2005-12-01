@@ -1,24 +1,24 @@
-# Microsoft Developer Studio Project File - Name="libusb" - Package Owner=<4>
+# Microsoft Developer Studio Project File - Name="libsjpcm" - Package Owner=<4>
 # Microsoft Developer Studio Generated Build File, Format Version 6.00
 # ** DO NOT EDIT **
 
 # TARGTYPE "Win32 (x86) External Target" 0x0106
 
-CFG=libusb - Win32 Debug
+CFG=libsjpcm - Win32 Debug
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
 !MESSAGE 
-!MESSAGE NMAKE /f "libusb.mak".
+!MESSAGE NMAKE /f "libsjpcm.mak".
 !MESSAGE 
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
 !MESSAGE 
-!MESSAGE NMAKE /f "libusb.mak" CFG="libusb - Win32 Debug"
+!MESSAGE NMAKE /f "libsjpcm.mak" CFG="libsjpcm - Win32 Debug"
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 
-!MESSAGE "libusb - Win32 Release" (based on "Win32 (x86) External Target")
-!MESSAGE "libusb - Win32 Debug" (based on "Win32 (x86) External Target")
+!MESSAGE "libsjpcm - Win32 Release" (based on "Win32 (x86) External Target")
+!MESSAGE "libsjpcm - Win32 Debug" (based on "Win32 (x86) External Target")
 !MESSAGE 
 
 # Begin Project
@@ -26,45 +26,45 @@ CFG=libusb - Win32 Debug
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
 
-!IF  "$(CFG)" == "libusb - Win32 Release"
+!IF  "$(CFG)" == "libsjpcm - Win32 Release"
 
-# PROP BASE Use_MFC 0
+# PROP BASE Use_MFC
 # PROP BASE Use_Debug_Libraries 0
 # PROP BASE Output_Dir "Release"
 # PROP BASE Intermediate_Dir "Release"
-# PROP BASE Cmd_Line "NMAKE /f libusb.mak"
+# PROP BASE Cmd_Line "NMAKE /f libsjpcm.mak"
 # PROP BASE Rebuild_Opt "/a"
-# PROP BASE Target_File "libusb.exe"
-# PROP BASE Bsc_Name "libusb.bsc"
+# PROP BASE Target_File "libsjpcm.exe"
+# PROP BASE Bsc_Name "libsjpcm.bsc"
 # PROP BASE Target_Dir ""
-# PROP Use_MFC 0
+# PROP Use_MFC
 # PROP Use_Debug_Libraries 0
 # PROP Output_Dir "../vc6/Release"
 # PROP Intermediate_Dir "../vc6/Release"
 # PROP Cmd_Line "make"
 # PROP Rebuild_Opt "clean"
-# PROP Target_File "libusb.a"
+# PROP Target_File "libsjpcm.a"
 # PROP Bsc_Name ""
 # PROP Target_Dir ""
 
-!ELSEIF  "$(CFG)" == "libusb - Win32 Debug"
+!ELSEIF  "$(CFG)" == "libsjpcm - Win32 Debug"
 
-# PROP BASE Use_MFC 0
+# PROP BASE Use_MFC
 # PROP BASE Use_Debug_Libraries 1
 # PROP BASE Output_Dir "Debug"
 # PROP BASE Intermediate_Dir "Debug"
-# PROP BASE Cmd_Line "NMAKE /f libusb.mak"
+# PROP BASE Cmd_Line "NMAKE /f libsjpcm.mak"
 # PROP BASE Rebuild_Opt "/a"
-# PROP BASE Target_File "libusb.exe"
-# PROP BASE Bsc_Name "libusb.bsc"
+# PROP BASE Target_File "libsjpcm.exe"
+# PROP BASE Bsc_Name "libsjpcm.bsc"
 # PROP BASE Target_Dir ""
-# PROP Use_MFC 0
+# PROP Use_MFC
 # PROP Use_Debug_Libraries 1
 # PROP Output_Dir "../vc6/Debug"
 # PROP Intermediate_Dir "../vc6/Debug"
 # PROP Cmd_Line "make"
 # PROP Rebuild_Opt "clean"
-# PROP Target_File "libusb.a"
+# PROP Target_File "libsjpcm.a"
 # PROP Bsc_Name ""
 # PROP Target_Dir ""
 
@@ -72,12 +72,12 @@ CFG=libusb - Win32 Debug
 
 # Begin Target
 
-# Name "libusb - Win32 Release"
-# Name "libusb - Win32 Debug"
+# Name "libsjpcm - Win32 Release"
+# Name "libsjpcm - Win32 Debug"
 
-!IF  "$(CFG)" == "libusb - Win32 Release"
+!IF  "$(CFG)" == "libsjpcm - Win32 Release"
 
-!ELSEIF  "$(CFG)" == "libusb - Win32 Debug"
+!ELSEIF  "$(CFG)" == "libsjpcm - Win32 Debug"
 
 !ENDIF 
 
@@ -86,7 +86,7 @@ CFG=libusb - Win32 Debug
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
-SOURCE=.\mass_rpc.c
+SOURCE=.\sjpcm_rpc.c
 # End Source File
 # End Group
 # Begin Group "Header Files"
@@ -94,7 +94,7 @@ SOURCE=.\mass_rpc.c
 # PROP Default_Filter "h;hpp;hxx;hm;inl"
 # Begin Source File
 
-SOURCE=.\mass_rpc.h
+SOURCE=.\sjpcm.h
 # End Source File
 # End Group
 # Begin Group "Resource Files"

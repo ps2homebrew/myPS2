@@ -35,6 +35,38 @@ MA  02110-1301, USA.
 uiStatic_t uis;
 
 //
+// UI_Thread - UI thread entry function
+//
+
+void UI_Thread( void )
+{
+	u32 padBtns, padBtnsOld;
+
+	// query Gamepad
+	padBtns = padBtnsOld = 0;
+
+	while(1)
+	{
+		if( !GP_GetPressMode() )
+		{
+			// a button was pressed, inform user interface
+			if( padBtns > padBtnsOld )
+				UI_GamepadInput( padBtns );
+		}
+		else
+		{
+			// continuously inform user interface as long as
+			// any buttons are down
+			if( padBtns > 0 )
+				UI_GamepadInput( padBtns );
+		}
+
+		padBtnsOld	= padBtns;
+		padBtns		= GP_GetButtons();
+	}
+}
+
+//
 // UI_Init - Initializes User Interface
 //
 // Loads persistent images and then opens up main menu screen.

@@ -325,6 +325,7 @@ typedef enum {
 	RB_STATE_ENABLED
 } rbState_e;
 
+void UI_Thread( void );
 void UI_Init( void );
 int UI_AddItemToMenu( menuFramework_t *menu, void *item );
 void UI_DelItemFromMenu( menuFramework_t *menu, void *item );

@@ -1,24 +1,24 @@
-# Microsoft Developer Studio Project File - Name="myPS2" - Package Owner=<4>
+# Microsoft Developer Studio Project File - Name="libmad" - Package Owner=<4>
 # Microsoft Developer Studio Generated Build File, Format Version 6.00
 # ** DO NOT EDIT **
 
 # TARGTYPE "Win32 (x86) External Target" 0x0106
 
-CFG=myPS2 - Win32 Debug
+CFG=libmad - Win32 Debug
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
 !MESSAGE 
-!MESSAGE NMAKE /f "myPS2.mak".
+!MESSAGE NMAKE /f "libmad.mak".
 !MESSAGE 
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
 !MESSAGE 
-!MESSAGE NMAKE /f "myPS2.mak" CFG="myPS2 - Win32 Debug"
+!MESSAGE NMAKE /f "libmad.mak" CFG="libmad - Win32 Debug"
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 
-!MESSAGE "myPS2 - Win32 Release" (based on "Win32 (x86) External Target")
-!MESSAGE "myPS2 - Win32 Debug" (based on "Win32 (x86) External Target")
+!MESSAGE "libmad - Win32 Release" (based on "Win32 (x86) External Target")
+!MESSAGE "libmad - Win32 Debug" (based on "Win32 (x86) External Target")
 !MESSAGE 
 
 # Begin Project
@@ -26,45 +26,45 @@ CFG=myPS2 - Win32 Debug
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
 
-!IF  "$(CFG)" == "myPS2 - Win32 Release"
+!IF  "$(CFG)" == "libmad - Win32 Release"
 
-# PROP BASE Use_MFC 0
+# PROP BASE Use_MFC
 # PROP BASE Use_Debug_Libraries 0
 # PROP BASE Output_Dir "Release"
 # PROP BASE Intermediate_Dir "Release"
-# PROP BASE Cmd_Line "NMAKE /f myPS2.mak"
+# PROP BASE Cmd_Line "NMAKE /f libmad.mak"
 # PROP BASE Rebuild_Opt "/a"
-# PROP BASE Target_File "myPS2.exe"
-# PROP BASE Bsc_Name "myPS2.bsc"
+# PROP BASE Target_File "libmad.exe"
+# PROP BASE Bsc_Name "libmad.bsc"
 # PROP BASE Target_Dir ""
-# PROP Use_MFC 0
+# PROP Use_MFC
 # PROP Use_Debug_Libraries 0
-# PROP Output_Dir "vc6/Release"
-# PROP Intermediate_Dir "vc6/Release"
+# PROP Output_Dir "../vc6/Release"
+# PROP Intermediate_Dir "../vc6/Release"
 # PROP Cmd_Line "make"
 # PROP Rebuild_Opt "clean"
-# PROP Target_File "myPS2.elf"
+# PROP Target_File "libmad.a"
 # PROP Bsc_Name ""
 # PROP Target_Dir ""
 
-!ELSEIF  "$(CFG)" == "myPS2 - Win32 Debug"
+!ELSEIF  "$(CFG)" == "libmad - Win32 Debug"
 
-# PROP BASE Use_MFC 0
+# PROP BASE Use_MFC
 # PROP BASE Use_Debug_Libraries 1
 # PROP BASE Output_Dir "Debug"
 # PROP BASE Intermediate_Dir "Debug"
-# PROP BASE Cmd_Line "NMAKE /f myPS2.mak"
+# PROP BASE Cmd_Line "NMAKE /f libmad.mak"
 # PROP BASE Rebuild_Opt "/a"
-# PROP BASE Target_File "myPS2.exe"
-# PROP BASE Bsc_Name "myPS2.bsc"
+# PROP BASE Target_File "libmad.exe"
+# PROP BASE Bsc_Name "libmad.bsc"
 # PROP BASE Target_Dir ""
-# PROP Use_MFC 0
+# PROP Use_MFC
 # PROP Use_Debug_Libraries 1
-# PROP Output_Dir "vc6/Debug"
-# PROP Intermediate_Dir "vc6/Debug"
+# PROP Output_Dir "../vc6/Debug"
+# PROP Intermediate_Dir "../vc6/Debug"
 # PROP Cmd_Line "make"
 # PROP Rebuild_Opt "clean"
-# PROP Target_File "myPS2.elf"
+# PROP Target_File "libmad.a"
 # PROP Bsc_Name ""
 # PROP Target_Dir ""
 
@@ -72,12 +72,12 @@ CFG=myPS2 - Win32 Debug
 
 # Begin Target
 
-# Name "myPS2 - Win32 Release"
-# Name "myPS2 - Win32 Debug"
+# Name "libmad - Win32 Release"
+# Name "libmad - Win32 Debug"
 
-!IF  "$(CFG)" == "myPS2 - Win32 Release"
+!IF  "$(CFG)" == "libmad - Win32 Release"
 
-!ELSEIF  "$(CFG)" == "myPS2 - Win32 Debug"
+!ELSEIF  "$(CFG)" == "libmad - Win32 Debug"
 
 !ENDIF 
 
@@ -86,47 +86,43 @@ CFG=myPS2 - Win32 Debug
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
-SOURCE=.\arial.c
+SOURCE=.\bit.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\elf.c
+SOURCE=.\decoder.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\file.c
+SOURCE=.\fixed.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\gamepad.c
+SOURCE=.\frame.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\gr.c
+SOURCE=.\huffman.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\images.c
+SOURCE=.\layer12.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\imgscale.c
+SOURCE=.\layer3.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\main.c
+SOURCE=.\minimad.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\mp3.c
+SOURCE=.\stream.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\scheduler.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\sysconf.c
+SOURCE=.\synth.c
 # End Source File
 # Begin Source File
 
@@ -134,31 +130,7 @@ SOURCE=.\timer.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\ui_elfloader.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\ui_install.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\ui_main.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\ui_manager.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\ui_menu.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\ui_options.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\ui_picview.c
+SOURCE=.\version.c
 # End Source File
 # End Group
 # Begin Group "Header Files"
@@ -166,47 +138,59 @@ SOURCE=.\ui_picview.c
 # PROP Default_Filter "h;hpp;hxx;hm;inl"
 # Begin Source File
 
-SOURCE=.\elf.h
+SOURCE=.\include\bit.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\file.h
+SOURCE=.\include\config.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\gamepad.h
+SOURCE=.\include\decoder.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\gr.h
+SOURCE=.\include\fixed.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\gr_regs.h
+SOURCE=.\include\frame.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\imgscale.h
+SOURCE=.\include\global.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\misc.h
+SOURCE=.\include\huffman.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\mp3.h
+SOURCE=.\include\layer12.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\scheduler.h
+SOURCE=.\include\layer3.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\sysconf.h
+SOURCE=.\include\mad.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\ui.h
+SOURCE=.\include\stream.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\include\synth.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\include\timer.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\include\version.h
 # End Source File
 # End Group
 # Begin Group "Resource Files"
@@ -215,18 +199,6 @@ SOURCE=.\ui.h
 # Begin Source File
 
 SOURCE=.\Makefile
-# End Source File
-# Begin Source File
-
-SOURCE=.\Makefile.eeglobal
-# End Source File
-# Begin Source File
-
-SOURCE=.\Makefile.iopglobal
-# End Source File
-# Begin Source File
-
-SOURCE=.\Makefile.pref
 # End Source File
 # End Group
 # End Target

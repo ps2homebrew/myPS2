@@ -36,29 +36,29 @@ MA  02110-1301, USA.
 
 const pair_t SC_DEFAULTS[] =
 {
-	{	"scr_adjust_x",			"0",						NULL,	NULL	},
-	{	"scr_adjust_y",			"0",						NULL,	NULL	},
-	{	"scr_mode",				"255",						NULL,	NULL	},
+	{	"scr_adjust_x",			"0",							NULL,	NULL	},
+	{	"scr_adjust_y",			"0",							NULL,	NULL	},
+	{	"scr_mode",				"255",							NULL,	NULL	},
 
-	{	"tbn_caching",			"1",						NULL,	NULL	},
-	{	"tbn_cache_path",		"pfs0:/SYS/THUMBCACHE/",	NULL,	NULL	},
+	{	"tbn_caching",			"1",							NULL,	NULL	},
+	{	"tbn_cache_path",		"pfs0:/SYS/THUMBCACHE/",		NULL,	NULL	},
 
-	{	"net_enable",			"1",						NULL,	NULL	},
-	{	"net_ip",				DEFAULT_NET_IP,				NULL,	NULL	},
-	{	"net_netmask",			DEFAULT_NETMASK,			NULL,	NULL	},
-	{	"net_gateway",			DEFAULT_GATEWAY_IP,			NULL,	NULL	},
+	{	"net_enable",			"1",							NULL,	NULL	},
+	{	"net_ip",				DEFAULT_NET_IP,					NULL,	NULL	},
+	{	"net_netmask",			DEFAULT_NETMASK,				NULL,	NULL	},
+	{	"net_gateway",			DEFAULT_GATEWAY_IP,				NULL,	NULL	},
 
-	{	"ftp_daemon",			"1",						NULL,	NULL	},
-	{	"ftp_port",				DEFAULT_FTP_PORT,			NULL,	NULL	},
-	{	"ftp_anonymous",		"0",						NULL,	NULL	},
-	{	"ftp_login",			DEFAULT_FTP_LOGIN,			NULL,	NULL	},
-	{	"ftp_password",			DEFAULT_FTP_PASSW,			NULL,	NULL	},
+	{	"ftp_daemon",			"1",							NULL,	NULL	},
+	{	"ftp_port",				DEFAULT_FTP_PORT,				NULL,	NULL	},
+	{	"ftp_anonymous",		"0",							NULL,	NULL	},
+	{	"ftp_login",			DEFAULT_FTP_LOGIN,				NULL,	NULL	},
+	{	"ftp_password",			DEFAULT_FTP_PASSW,				NULL,	NULL	},
 
-	{	"usbd_irx_custom",		"0",						NULL,	NULL	},
-	{	"usbd_irx_path",		"pfs0:/SYS/USBD.IRX",		NULL,	NULL	},
+	{	"usbd_irx_custom",		"1",							NULL,	NULL	},
+	{	"usbd_irx_path",		"mc0:/USBD.IRX",				NULL,	NULL	},
 
-	{	"log_enable",			"0",						NULL,	NULL	},
-	{	"log_path",				"pfs0:/SYS/LOG.TXT",		NULL,	NULL	}
+	{	"log_enable",			"0",							NULL,	NULL	},
+	{	"log_path",				"pfs0:/SYS/LOG.TXT",			NULL,	NULL	}
 };
 
 pair_t	*listHead = NULL;

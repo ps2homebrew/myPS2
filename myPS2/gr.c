@@ -279,14 +279,11 @@ int GR_GetTextureBuffer( void )
 
 void GR_WaitForVSync( void )
 {
-	if( !grSettings.grInit )
-		return;
-
 	// enable the vsync interrupt.
 	GS_REG_CSR |= GS_SET_CSR(0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0);
 
 	// wait for the vsync interrupt.
-	while (!(GS_REG_CSR & (GS_SET_CSR(0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0)))) { }
+	while (!(GS_REG_CSR & (GS_SET_CSR(0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0)))) {}
 
 	// disable the vsync interrupt.
 	GS_REG_CSR &= ~GS_SET_CSR(0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0);

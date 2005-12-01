@@ -15,6 +15,30 @@ Package=<4>
 
 ###############################################################################
 
+Project: "libmad"=..\libmad\libmad.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "libsjpcm"=..\libsjpcm\libsjpcm.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
 Project: "libusb"=..\libusb\libusb.dsp - Package Owner=<4>
 
 Package=<5>

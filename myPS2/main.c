@@ -37,6 +37,7 @@ MA  02110-1301, USA.
 #include <sys/fcntl.h>	// FIO_MT_RDWR
 #include <sbv_patches.h>
 #include <libusb/mass_rpc.h>
+#include <kernel.h>
 
 #include <gr.h>
 #include <ui.h>
@@ -44,10 +45,17 @@ MA  02110-1301, USA.
 #include <misc.h>
 #include <imgscale.h>
 #include <sysconf.h>
+#include <mp3.h>
+#include <scheduler.h>
+
+// testing
+void MP3_ThreadTEST( void )
+{
+	MP3_Play( "pfs0:/MP3/TEST.MP3" );
+}
 
 int main( int argc, char *argv[] )
 {
-	u32 padBtns, padBtnsOld;
 	int nTexBufAddr;
 
 	int	nScrMode, nScrVer, nScrHor;
@@ -96,29 +104,15 @@ int main( int argc, char *argv[] )
 
 	// init the user interface
 	UI_Init();
-	
-	// query Gamepad
-	padBtns = padBtnsOld = 0;
 
-	while(1)
-	{
-		if( !GP_GetPressMode() )
-		{
-			// a button was pressed, inform user interface
-			if( padBtns > padBtnsOld )
-				UI_GamepadInput( padBtns );
-		}
-		else
-		{
-			// continuously inform user interface as long as
-			// any buttons are down
-			if( padBtns > 0 )
-				UI_GamepadInput( padBtns );
-		}
+	// init the thread scheduler
+	Scheduler_Init();
 
-		padBtnsOld	= padBtns;
-		padBtns		= GP_GetButtons();
-	}
+	// create ui thread
+	Scheduler_BeginThread( UI_Thread );
+	Scheduler_BeginThread( MP3_ThreadTEST );
+
+	Scheduler_Run();
 
 	HDD_ShutDown();
 	GR_ShutDown();
@@ -264,6 +258,24 @@ void loadModules( const char *path )
 	if( ret < 0 ) {
 #ifdef _DEBUG
 		printf("SifExecModuleBuffer poweroff failed: %d\n", ret);
+#endif
+		SleepThread();
+	}
+
+	// LIBSD
+	ret = SifLoadModule( "rom0:LIBSD", 0, NULL );
+	if( ret < 0 ) {
+#ifdef _DEBUG
+		printf("SifLoadModule LIBSD failed: %d\n", ret);
+#endif
+		SleepThread();
+	}
+
+	// SjPCM module (embedded in ELF)
+	ret = SifExecModuleBuffer( &sjpcm_irx, size_sjpcm_irx, 0, NULL, &irx_ret );
+	if( ret < 0 ) {
+#ifdef _DEBUG
+		printf("SifExexModuleBuffer sjpcm failed : %d\n", ret);
 #endif
 		SleepThread();
 	}
@@ -551,6 +563,7 @@ void USB_Init( void )
 			return;
 		}
 	}
+/*
 	else {
 		// load Naplink usbd module
 		nRet = SifExecModuleBuffer( &npm_usbd_irx, size_npm_usbd_irx, 0, NULL, &irx_ret );
@@ -561,6 +574,7 @@ void USB_Init( void )
 			return;
 		}
 	}
+*/
 
 	// load USB mass module (embedded in ELF)
 	nRet = SifExecModuleBuffer( &usb_mass_irx, size_usb_mass_irx, 0, NULL, &irx_ret );

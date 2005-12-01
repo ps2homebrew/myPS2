@@ -26,21 +26,26 @@ EE_OBJS =	$(EE_OBJS_DIR)/main.o			\
 			$(EE_OBJS_DIR)/imgscale.o		\
 			$(EE_OBJS_DIR)/file.o			\
 			$(EE_OBJS_DIR)/sysconf.o		\
+			$(EE_OBJS_DIR)/mp3.o			\
+			$(EE_OBJS_DIR)/scheduler.o		\
 			$(EE_OBJS_DIR)/images.o			\
 			$(EE_OBJS_DIR)/loader.o			\
 			$(EE_OBJS_DIR)/usb_mass.o		\
-			$(EE_OBJS_DIR)/iomanx.o		\
+			$(EE_OBJS_DIR)/iomanx.o			\
 			$(EE_OBJS_DIR)/filexio.o		\
 			$(EE_OBJS_DIR)/ps2dev9.o		\
 			$(EE_OBJS_DIR)/ps2atad.o		\
-			$(EE_OBJS_DIR)/ps2hdd.o		\
-			$(EE_OBJS_DIR)/ps2fs.o		\
+			$(EE_OBJS_DIR)/ps2hdd.o			\
+			$(EE_OBJS_DIR)/ps2fs.o			\
 			$(EE_OBJS_DIR)/poweroff.o		\
 			$(EE_OBJS_DIR)/cdvd.o			\
-			$(EE_OBJS_DIR)/npm_usbd.o		\
 			$(EE_OBJS_DIR)/ps2ip.o			\
 			$(EE_OBJS_DIR)/ps2smap.o		\
-			$(EE_OBJS_DIR)/ps2ftpd.o
+			$(EE_OBJS_DIR)/ps2ftpd.o		\
+			$(EE_OBJS_DIR)/sjpcm.o			\
+
+# removed
+#			$(EE_OBJS_DIR)/npm_usbd.o
 
 EE_LIBS	=	-lc			\
 			-lpacket	\
@@ -54,7 +59,10 @@ EE_LIBS	=	-lc			\
 			-lmc		\
 			-lpatches	\
 			-lpoweroff	\
-			-lusb
+			-lusb		\
+			-lsjpcm		\
+			-lmad		\
+			-lsample
 
 # add local lib directory
 EE_LDFLAGS += -L./lib
@@ -69,25 +77,25 @@ $(EE_OBJS_DIR)/usb_mass.s:
 	bin2s usb_irx/bin/usb_mass.irx $(EE_OBJS_DIR)/usb_mass.s usb_mass_irx
 
 $(EE_OBJS_DIR)/iomanx.s:
-	bin2s irx/IOMANX.IRX $(EE_OBJS_DIR)/iomanx.s iomanx_irx
+	bin2s $(PS2SDK)/iop/irx/IOMANX.IRX $(EE_OBJS_DIR)/iomanx.s iomanx_irx
 
 $(EE_OBJS_DIR)/filexio.s:
-	bin2s irx/FILEXIO.IRX $(EE_OBJS_DIR)/filexio.s filexio_irx
+	bin2s $(PS2SDK)/iop/irx/FILEXIO.IRX $(EE_OBJS_DIR)/filexio.s filexio_irx
 
 $(EE_OBJS_DIR)/ps2dev9.s:
-	bin2s irx/PS2DEV9.IRX $(EE_OBJS_DIR)/ps2dev9.s ps2dev9_irx
+	bin2s $(PS2SDK)/iop/irx/PS2DEV9.IRX $(EE_OBJS_DIR)/ps2dev9.s ps2dev9_irx
 
 $(EE_OBJS_DIR)/ps2atad.s:
-	bin2s irx/PS2ATAD.IRX $(EE_OBJS_DIR)/ps2atad.s ps2atad_irx
+	bin2s $(PS2SDK)/iop/irx/PS2ATAD.IRX $(EE_OBJS_DIR)/ps2atad.s ps2atad_irx
 
 $(EE_OBJS_DIR)/ps2hdd.s:
-	bin2s irx/PS2HDD.IRX $(EE_OBJS_DIR)/ps2hdd.s ps2hdd_irx
+	bin2s $(PS2SDK)/iop/irx/PS2HDD.IRX $(EE_OBJS_DIR)/ps2hdd.s ps2hdd_irx
 
 $(EE_OBJS_DIR)/ps2fs.s:
-	bin2s irx/PS2FS.IRX $(EE_OBJS_DIR)/ps2fs.s ps2fs_irx
+	bin2s $(PS2SDK)/iop/irx/PS2FS.IRX $(EE_OBJS_DIR)/ps2fs.s ps2fs_irx
 
 $(EE_OBJS_DIR)/poweroff.s:
-	bin2s irx/POWEROFF.IRX $(EE_OBJS_DIR)/poweroff.s poweroff_irx
+	bin2s $(PS2SDK)/iop/irx/POWEROFF.IRX $(EE_OBJS_DIR)/poweroff.s poweroff_irx
 
 $(EE_OBJS_DIR)/cdvd.s:
 	bin2s irx/CDVD.IRX $(EE_OBJS_DIR)/cdvd.s cdvd_irx
@@ -96,13 +104,16 @@ $(EE_OBJS_DIR)/npm_usbd.s:
 	bin2s irx/NPM_USBD.IRX $(EE_OBJS_DIR)/npm_usbd.s npm_usbd_irx
 
 $(EE_OBJS_DIR)/ps2ip.s:
-	bin2s irx/PS2IP.IRX $(EE_OBJS_DIR)/ps2ip.s ps2ip_irx
+	bin2s $(PS2SDK)/iop/irx/PS2IP.IRX $(EE_OBJS_DIR)/ps2ip.s ps2ip_irx
 
 $(EE_OBJS_DIR)/ps2smap.s:
-	bin2s irx/PS2SMAP.IRX $(EE_OBJS_DIR)/ps2smap.s ps2smap_irx
+	bin2s $(PS2SDK)/iop/irx/PS2SMAP.IRX $(EE_OBJS_DIR)/ps2smap.s ps2smap_irx
 
 $(EE_OBJS_DIR)/ps2ftpd.s:
 	bin2s ps2ftpd/bin/ps2ftpd.irx $(EE_OBJS_DIR)/ps2ftpd.s ps2ftpd_irx
+
+$(EE_OBJS_DIR)/sjpcm.s:
+	bin2s irx/SJPCM.IRX $(EE_OBJS_DIR)/sjpcm.s sjpcm_irx
 
 clean:
 	rm -f -r $(EE_OBJS_DIR) $(EE_BIN_DIR)
