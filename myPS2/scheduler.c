@@ -30,9 +30,22 @@ MA  02110-1301, USA.
 #		The scheduler thread rotates the ready queue 
 #		whenever it is woken up by the alarm interrupt.
 #
+#		Problems:
+#		 - Lots of consecutive calls to SifCallRpc
+#		   (parsing a file with fgets for example) are
+#		   extremely slow while it's no problem to read
+#		   the whole file into memory and then parse it
+#		   there.
+#
+#		 - Had an exeception crash once while decoding
+#		   an MP3 and copying files in the file manager.
+#		   Haven't really looked into that.
+#
 */
 
 #include <scheduler.h>
+
+#define INT_VBLANK_START	0x02
 
 // ?
 extern void *_gp;
@@ -40,8 +53,21 @@ extern void *_gp;
 static threadStack_t threadStack[ SCHEDULER_MAX_THREADS ];
 
 static volatile int	numThreads		= 0;
-static int			schedulerThread	= 0;
+static volatile int	schedulerThread	= 0;
 static int			scheduler_sema;
+
+// this probably isn't a very good solution
+// but the alarm stuff does not work properly
+int vblankHandler(int cause)
+{
+	// set scheduler thread back to its original priority
+	iChangeThreadPriority( schedulerThread, SCHEDULER_PRIO_MAIN );
+
+	// force scheduler thread to be rescheduled
+	iRotateThreadReadyQueue( SCHEDULER_PRIO_MAIN );
+
+	return 0;
+}
 
 //
 // Scheduler_Init - Initializes Thread Scheduler
@@ -61,6 +87,10 @@ int Scheduler_Init( void )
 		return 0;
 
 	schedulerThread = GetThreadId();
+
+	// just use vsync interrupt for now
+	AddIntcHandler(INT_VBLANK_START, vblankHandler, 0);
+	EnableIntc(INT_VBLANK_START);
 
 	return 1;
 }
@@ -84,12 +114,12 @@ void Scheduler_Alarm( s32 id, u16 time, void *arg )
 
 void Scheduler_Run( void )
 {
-	s32 alarmID;
+//	s32 alarmID;
 
 	while(1)
 	{
 		// install alarm
-		alarmID = SetAlarm( SCHEDULER_TIME_SLICE, Scheduler_Alarm, 0 );
+//		alarmID = SetAlarm( SCHEDULER_TIME_SLICE, Scheduler_Alarm, 0 );
 
 		// this should give control to one of the worker threads
 		ChangeThreadPriority( schedulerThread, SCHEDULER_PRIO_THREAD + 10 );
@@ -98,7 +128,7 @@ void Scheduler_Run( void )
 		RotateThreadReadyQueue( SCHEDULER_PRIO_THREAD );
 
 		// release the alarm
-		ReleaseAlarm(alarmID);
+//		ReleaseAlarm(alarmID);
 	}
 }
 

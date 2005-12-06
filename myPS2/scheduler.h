@@ -43,7 +43,7 @@ MA  02110-1301, USA.
 #define SCHEDULER_PRIO_MAIN		64
 
 typedef struct {
-	char			stack[1024*1024]  __attribute__(   (  aligned( 16 )  )   );
+	char			stack[SCHEDULER_STACK_SIZE]  __attribute__(   (  aligned( 16 )  )   );
 	volatile int	used;
 	volatile s32	thread;
 } threadStack_t;

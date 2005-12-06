@@ -48,12 +48,6 @@ MA  02110-1301, USA.
 #include <mp3.h>
 #include <scheduler.h>
 
-// testing
-void MP3_ThreadTEST( void )
-{
-	MP3_Play( "pfs0:/MP3/TEST.MP3" );
-}
-
 int main( int argc, char *argv[] )
 {
 	int nTexBufAddr;
@@ -110,7 +104,6 @@ int main( int argc, char *argv[] )
 
 	// create ui thread
 	Scheduler_BeginThread( UI_Thread );
-	Scheduler_BeginThread( MP3_ThreadTEST );
 
 	Scheduler_Run();
 
@@ -542,14 +535,29 @@ int MC_Available( int nPort )
 
 int nUSBInit = 0;
 
+const char *pUSBDPath[] =
+{
+	"mc0:/USBD.IRX",
+	"mc0:/SYS-CONF/USBD.IRX",
+	"mc0:/BOOT/USBD.IRX",
+	"mc0:/BOOT/MYPS2/USBD.IRX",
+	"mc0:/BOOT/SMS/USBD.IRX",
+	"mc0:/BOOT/PS2MP3/USBD.IRX",
+	"mc0:/MYPS2/USBD.IRX",
+	"mc0:/SMS/USBD.IRX",
+	"mc0:/PS2MP3/USBD.IRX"
+};
+
 //
 // USB_Init - Loads modules and initializes USB
 //
 
 void USB_Init( void )
 {
-	int nRet, irx_ret;
+	int nRet, irx_ret, i;
 	char strPath[256];
+	FHANDLE fHandle;
+	int nSize, numElems;
 
 	// user wants to load a custom usbd.irx
 	if( SC_GetValueForKey_Int( "usbd_irx_custom", NULL ) ) {
@@ -563,18 +571,38 @@ void USB_Init( void )
 			return;
 		}
 	}
-/*
 	else {
-		// load Naplink usbd module
-		nRet = SifExecModuleBuffer( &npm_usbd_irx, size_npm_usbd_irx, 0, NULL, &irx_ret );
-		if( nRet < 0 ) {
+		numElems = sizeof(pUSBDPath) / sizeof(const char*);
+
+		// attempt to load from one of the default locations
+		for( i = 0; i < numElems; i++ )
+		{
+			fHandle = FileOpen( pUSBDPath[i], O_RDONLY );
+			if( fHandle.fh < 0 )
+				continue;
+
+			nSize = FileSeek( fHandle, 0, SEEK_END );
+			FileClose(fHandle);
+
+			if( !nSize )
+				continue;
+
+			// found one, try to load it
+			nRet = SifLoadModule( pUSBDPath[i], 0, NULL );
+			if( nRet < 0 ) {
 #ifdef _DEBUG
-			printf("SifExecModuleBuffer npm_usbd failed: %d\n", nRet);
+				printf("USB_Init: SifLoadModule %s failed: %d\n", pUSBDPath[i], nRet);
 #endif
-			return;
+				continue;
+			}
+
+			break;
 		}
+
+		// couldn't find the USBD.IRX module anywhere
+		if( i == numElems )
+			return;
 	}
-*/
 
 	// load USB mass module (embedded in ELF)
 	nRet = SifExecModuleBuffer( &usb_mass_irx, size_usb_mass_irx, 0, NULL, &irx_ret );

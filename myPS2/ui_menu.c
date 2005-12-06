@@ -40,6 +40,7 @@ uiStatic_t uis;
 
 void UI_Thread( void )
 {
+	static u64 nPlayTime;
 	u32 padBtns, padBtnsOld;
 
 	// query Gamepad
@@ -63,6 +64,12 @@ void UI_Thread( void )
 
 		padBtnsOld	= padBtns;
 		padBtns		= GP_GetButtons();
+
+		// may have to re-fresh screen so displayed play time gets updated
+		if( nPlayTime != MP3_GetCurrentTime() ) {
+				nPlayTime = MP3_GetCurrentTime();
+				UI_Refresh();
+		}
 	}
 }
 
@@ -362,6 +369,11 @@ void UI_DrawMenu( menuFramework_t *menu )
 		if( ptr->flags & CFL_INVISIBLE )
 			continue;
 
+		if( ptr->flags & CFL_OWNERDRAW ) {
+			menu->callback( menu, MSG_DRAWITEM, 0, ptr->id );
+			continue;
+		}
+
 		switch(ptr->type)
 		{
 			case MENU_CONTROL_TEXT:
@@ -467,6 +479,10 @@ void UI_SetActiveMenu( int menuId )
 			UI_InitElfLoaderMenu();
 			break;
 
+		case MENU_MYMUSIC:
+			UI_InitMyMusicMenu();
+			break;
+
 		case MENU_OPTIONS:
 			UI_InitOptionsMenu();
 			break;
@@ -547,6 +563,9 @@ void UI_DefaultInputHandler( menuFramework_t *menu, u32 buttons )
 
 	if( !menu || !menu->numItems )
 		return;
+
+	if( buttons & PAD_SELECT )
+		UI_Screenshot();
 
 	item = (menuCommon_t*) UI_GetSelectedItem( menu );
 	bHandled = 0;
@@ -639,6 +658,41 @@ void UI_DefaultInputHandler( menuFramework_t *menu, u32 buttons )
 	else if( buttons & PAD_CROSS )
 		item->parent->callback( item->parent, MSG_CONTROL, NOT_CLICKED, item->id );
 }
+
+//
+// UI_Screenshot - Takes a screenshot and saves it to disk
+//
+
+void UI_Screenshot( void )
+{
+	char strPath[256];
+	char strName[256];
+	CdvdClock_t clock;
+	
+	if( !SC_GetValueForKey_Int( "scr_screenshot", NULL ) )
+		return;
+
+	SC_GetValueForKey_Str( "scr_path", strPath );
+
+	if( !cdReadClock(&clock) )
+		return;
+
+	if( strPath[ strlen(strPath) - 1 ] != '/' )
+		strcat( strPath, "/" );
+
+	sprintf( strName, "%02i-%02i-%02i_%02i-%02i-%02i.jpg",
+					  BCD2DEC(clock.month), BCD2DEC(clock.day), BCD2DEC(clock.year),
+					  BCD2DEC(clock.hour), BCD2DEC(clock.minute), BCD2DEC(clock.second) );
+
+	strcat( strPath, strName );
+
+	GR_Screenshot( strPath );
+
+#ifdef _DEBUG
+	printf("UI_Screenshot : Saved screenshot (%s)\n", strPath);
+#endif
+}
+
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -798,8 +852,14 @@ int UI_InputDirViewControl( menuDirView_t *pDirView, menuFramework_t *menu, u32 
 			}
 			else
 			{
-				strcat( pDirView->absPath, pDirView->pEntries[ pDirView->selEntry ].name );
-				strcat( pDirView->absPath, "/" );
+				// FIXME: why won't this work for the dirview control in "my music"?
+		//		strcat( pDirView->absPath, pDirView->pEntries[ pDirView->selEntry ].name );
+		//		strcat( pDirView->absPath, "/" );
+
+				// this seems to work but there must be something wrong here
+				sprintf( pDirView->absPath, "%s%s/", pDirView->absPath, pDirView->pEntries[ pDirView->selEntry ].name );
+
+			//	printf("%s\n",pDirView->absPath);
 			}
 
 			UI_DirView_SetDir( pDirView, pDirView->absPath );
@@ -998,7 +1058,9 @@ void UI_DirView_SetDir( menuDirView_t *pDirView, const char *pDir )
 		UI_DirView_AddFile( pDirView, &f );
 	}
 
-	strncpy( pDirView->absPath, pDir, sizeof(pDirView->absPath) );
+// FIXME
+//	strncpy( pDirView->absPath, pDir, sizeof(pDirView->absPath) );
+	strcpy( pDirView->absPath, pDir );
 
 	pFileInfo = (fileInfo_t*) malloc( sizeof(fileInfo_t) * MAX_DIR_FILES );
 	if( !pFileInfo ) {

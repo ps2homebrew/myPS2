@@ -32,7 +32,7 @@ MA  02110-1301, USA.
 #ifndef _UI_H
 #define _UI_H
 
-#define MYPS2_VERSION	"0.3" 
+#define MYPS2_VERSION	"0.4" 
 
 #include <gr.h>
 #include <libpad.h>
@@ -42,6 +42,8 @@ MA  02110-1301, USA.
 #include <gamepad.h>
 #include <sysconf.h>
 #include <include/cdvd.h>
+#include <mp3.h>
+#include <libcdvd.h> // cdReadClock
 
 #include <libjpg/include/libjpg.h>
 
@@ -95,7 +97,8 @@ typedef enum {
 	MSG_CONTROL,
 	MSG_DRAW,
 	MSG_CLOSE,
-	MSG_DIALOGEXIT
+	MSG_DIALOGEXIT,
+	MSG_DRAWITEM		// ownerdrawn items generate this message when they need to be drawn
 } callbackMsg_t;
 
 
@@ -106,6 +109,7 @@ enum {
 	MENU_PICVIEW,
 	MENU_MANAGER,
 	MENU_ELFLOADER,
+	MENU_MYMUSIC,
 	MENU_OPTIONS,
 	MENU_NETWORK,
 	MENU_OPTIONS_EDIT,
@@ -250,6 +254,11 @@ typedef struct {
 	comboEntry_t	*pEntries;
 } menuCombo_t;
 
+// right now this can only be used with CFL_OWNERDRAW.
+typedef struct {
+	menuCommon_t	generic;
+} menuButton_t;
+
 
 #define UI_DIRVIEW_MARGIN	20		// 20 pixel margin
 #define UI_EDIT_MARGIN		20
@@ -263,7 +272,9 @@ typedef enum {
 	MENU_CONTROL_EDITFIELD,		// Editfield with a keyboard mask
 	MENU_CONTROL_SLIDER,		// A movable Slider Control
 	MENU_CONTROL_RADIO,			// Radio Button Control
-	MENU_CONTROL_COMBO			// Combo dropdown like Control
+	MENU_CONTROL_COMBO,			// Combo dropdown like Control
+	MENU_CONTROL_BUTTON			// Regular Button Control
+								// This can replace the TRIBUTTON stuff.
 
 } menuContols_e;
 
@@ -272,6 +283,7 @@ typedef enum {
 #define CFL_CENTER_JUSTIFY	0x00000004
 #define CFL_INVISIBLE		0x00000008
 #define CFL_FORCECOLOR		0x00000010
+#define CFL_OWNERDRAW		0x00000100
 
 // Slider Flags
 //
@@ -340,6 +352,7 @@ void UI_PopupOpen( int popupId, menuFramework_t *parent );
 void UI_PopupClose( menuFramework_t *popup );
 void UI_GamepadInput( u32 buttons );
 void UI_DefaultInputHandler( menuFramework_t *menu, u32 buttons );
+void UI_Screenshot( void );
 
 void UI_InitDirViewControl( menuDirView_t *pDirView );
 int UI_InputDirViewControl( menuDirView_t *pDirView, menuFramework_t *menu, u32 buttons );
@@ -464,6 +477,19 @@ void UI_ElfLoaderDraw( void );
 int UI_LoadDescriptions( descEntry_t *descTable, int maxItems );
 const descEntry_t *UI_GetDescByName( const char *name );
 int UI_AddDescription( const char *strFile, const char *strDesc );
+
+//
+// ui_music.c
+//
+
+void UI_InitMyMusicMenu( void );
+int UI_MyMusicCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long sParam );
+void UI_MyMusicDraw( void );
+void UI_MyMusicDrawPrev( void );
+void UI_MyMusicDrawPlay( void );
+void UI_MyMusicDrawPause( void );
+void UI_MyMusicDrawStop( void );
+void UI_MyMusicDrawNext( void );
 
 //
 // ui_install.c

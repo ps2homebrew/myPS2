@@ -40,17 +40,72 @@ MA  02110-1301, USA.
 // MP3 playback.
 //
 
-int MP3_Play( const char *pFileName );
+int	MP3_Play( const char *pFileName );
+void MP3_Stop( void );
+int MP3_GetStatus( void );
+void MP3_SetVolume( int nVolume );
+int MP3_GetVolume( void );
+void MP3_SetLooping( int nValue );
+int MP3_GetLooping( void );
+const char *MP3_GetTrackName( void );
+int MP3_GetTrackLength( void );
+int MP3_GetCurrentTime( void );
+void MP3_SetPause( int nPause );
+void MP3_NextTrack( void );
+void MP3_PrevTrack( void );
 
+///////////////////////////////////////////
+//
+
+typedef struct listEntry_s listEntry_t;
+
+struct listEntry_s {
+	char *filename;
+
+	listEntry_t *next;
+	listEntry_t *prev;
+};
+
+enum {
+	MP3_STOPPED,
+	MP3_PLAYING,
+	MP3_PAUSED
+};
+
+#define MP3_FRAME_SYNC				0xFFE00000
+#define MP3_MPEG_VERSION			0x180000
+#define MP3_MPEG_VERSION_OFFSET		0x13
+#define MP3_LAYER_DESC				0x60000
+#define MP3_LAYER_DESC_OFFSET		0x11
+#define MP3_BITRATE_INDEX			0xF000
+#define MP3_BITRATE_INDEX_OFFSET	0x0C
+
+#define MP3_NUM_MPEG_VERSION		2
+#define MP3_NUM_LAYERS				3
+#define MP3_NUM_BITRATES			15
+
+#define MP3_MPEG_VERSION_1			3
+#define MP3_MPEG_VERSION_2			2
+#define MP3_MPEG_VERSION_2_5		0
+
+#define MP3_LAYER_1					3
+#define MP3_LAYER_2					2
+#define MP3_LAYER_3					1
+
+// ID3V2 stuff, see http://www.id3.org/id3v2.4.0-structure.txt
+#define	MP3_ID3V2_FOOTER			0x10
 
 // these should only be called from the mp3 playback thread
 //
 
-void _mp3_playback( const char *pFileName );
+int _mp3_init( void );
+void _mp3_playback( void );
 int _mp3_decode( unsigned char const *start, unsigned long length );
 enum mad_flow _mp3_input( void *data, struct mad_stream *stream );
 enum mad_flow _mp3_output( void *data, struct mad_header const *header, struct mad_pcm *pcm );
 enum mad_flow _mp3_error( void *data, struct mad_stream *stream, struct mad_frame *frame );
+int _mp3_getbitrate( const char *pFileName );
+int _mp3_getbitrate_mem( const u8 *pBuffer, int nBufSize );
 
 struct audio_dither  {
 	mad_fixed_t error[3];

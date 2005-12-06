@@ -359,6 +359,9 @@ int UI_LoadDescriptions( descEntry_t *descTable, int maxItems )
 	int		numRead;
 	char	*p_start, *p_end;
 
+	char	*pBuffer, *pBufPtr;
+	u64		nSize;
+
 	if( !MC_Available(0) )
 		return 0;
 
@@ -373,10 +376,37 @@ int UI_LoadDescriptions( descEntry_t *descTable, int maxItems )
 		return 0;
 	}
 
+	// read whole file into memory buffer
+	nSize = FileSeek( fHandle, 0, SEEK_END );
+	FileSeek( fHandle, 0, SEEK_SET );
+
+	if( nSize == 0 ) {
+#ifdef _DEBUG
+		printf("UI_LoadDescriptions : File size is 0!\n");
+#endif
+		FileClose( fHandle );
+		return 0;
+	}
+
+	pBuffer = (char*) malloc( nSize + 1 );
+	if( pBuffer == NULL ) {
+#ifdef _DEBUG
+		printf("UI_LoadDescriptions : malloc() failed for pBuffer!\n");
+#endif
+		FileClose( fHandle );
+		return 0;
+	}
+
+	numRead = FileRead( fHandle, pBuffer, nSize );
+	pBuffer[ numRead ] = 0;
+
+	FileClose( fHandle );
+
+	pBufPtr = pBuffer;
 	numRead = 0;
 
 	// parse buffer line by line
-	while( FileGets( strLine, sizeof(strLine), fHandle ) )
+	while( ReadBufLine( &pBufPtr, strLine ) )
 	{
 		if( numRead >= maxItems )
 			break;
@@ -411,7 +441,7 @@ int UI_LoadDescriptions( descEntry_t *descTable, int maxItems )
 		strncpy( descTable[ numRead ].filePath, p_start, p_end - p_start );
 
 		// read description line
-		FileGets( strLine, sizeof(strLine), fHandle );
+		ReadBufLine( &pBufPtr, strLine );
 		strncpy( descTable[ numRead ].fileDesc, strLine, strlen(strLine) - 1 );
 
 		// null terminate
@@ -420,7 +450,7 @@ int UI_LoadDescriptions( descEntry_t *descTable, int maxItems )
 		numRead++;
 	}
 
-	FileClose(fHandle);
+	free( pBuffer );
 
 	return numRead;
 }

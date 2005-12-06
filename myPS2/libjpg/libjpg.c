@@ -397,11 +397,6 @@ void jpgClose( jpgData *jpg )
 
 int jpgScreenshot( const char* pFilename,unsigned int VramAdress, unsigned int Width, unsigned int Height, unsigned int Psm )
 {
-#ifndef SCREENSHOT_SWITCH
-	printf("jpgScreenshot : Not implemented. Recompile with SCREENSHOT_SWITCH.\n");
-	return 0;
-#else
-
 	s32 file_handle;
 	u32 y;
 	static u32 in_buffer[1024*4];  // max 1024*32bit for a line, should be ok
@@ -494,6 +489,5 @@ int jpgScreenshot( const char* pFilename,unsigned int VramAdress, unsigned int W
 	free(out_buffer);
 
 	return 0;
-#endif
 }
 

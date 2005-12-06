@@ -44,7 +44,6 @@ extern u8	*ps2hdd_irx;
 extern u8	*ps2fs_irx;
 extern u8	*poweroff_irx;
 extern u8	*cdvd_irx;
-//extern u8	*npm_usbd_irx;
 extern u8	*usb_mass_irx;
 extern u8	*ps2ip_irx;
 extern u8	*ps2smap_irx;
@@ -59,12 +58,14 @@ extern int	size_ps2hdd_irx;
 extern int	size_ps2fs_irx;
 extern int	size_poweroff_irx;
 extern int	size_cdvd_irx;
-//extern int	size_npm_usbd_irx;
 extern int	size_usb_mass_irx;
 extern int	size_ps2ip_irx;
 extern int	size_ps2smap_irx;
 extern int	size_ps2ftpd_irx;
 extern int	size_sjpcm_irx;
+
+#define BCD2DEC(bcd)	(((((bcd)>>4) & 0x0F) * 10) + ((bcd) & 0x0F)) 
+#define DEC2BCD(dec)	((((dec)/10)<<4)|((dec)%10))
 
 typedef enum {
 	BOOT_HOST,

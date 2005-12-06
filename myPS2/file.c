@@ -222,6 +222,19 @@ char *FileGets( char *string, int num, FHANDLE fh )
 }
 
 //
+// FileGetc - Reads the next character from an open file
+//
+
+int FileGetc( FHANDLE fh )
+{
+	char c;
+
+	FileRead( fh, &c, 1 );
+
+	return c;
+}
+
+//
 // FileMkdir - Creates a new directory
 //
 
@@ -439,10 +452,8 @@ int DirGetContents( const char *path, const char *filter, fileInfo_t *fileInfo, 
 		index	= 0;
 		ptr		= NULL;
 
-		if( filter ) {
+		if( filter )
 			ptr = (char*) malloc( strlen(filter) + 1 );
-			strcpy( ptr, filter );
-		}
 
 		for( i = 0; i < numRead; i++ )
 		{
@@ -455,6 +466,8 @@ int DirGetContents( const char *path, const char *filter, fileInfo_t *fileInfo, 
 
 			if( filter && !(tocEntries[i].fileProperties & FLAG_DIRECTORY) ) 
 			{
+				strcpy( ptr, filter );
+
 				c = 0;
 				char *token = strtok( ptr, " " );
 
@@ -495,10 +508,8 @@ int DirGetContents( const char *path, const char *filter, fileInfo_t *fileInfo, 
 		index	= 0;
 		ptr		= NULL;
 
-		if( filter ) {
+		if( filter )
 			ptr = (char*) malloc( strlen(filter) + 1 );
-			strcpy( ptr, filter );
-		}
 
 		do {
 			if( !(nRet = fileXioDread( hDir, &dirEntry )) )
@@ -524,6 +535,8 @@ int DirGetContents( const char *path, const char *filter, fileInfo_t *fileInfo, 
 
 			if( filter && !(fileInfo[index].flags & FLAG_DIRECTORY) )
 			{
+				strcpy( ptr, filter );
+
 				c = 0;
 				char *token = strtok( ptr, " " );
 
@@ -574,10 +587,8 @@ int DirGetContents( const char *path, const char *filter, fileInfo_t *fileInfo, 
 		index	= 0;
 		ptr		= NULL;
 
-		if( filter ) {
+		if( filter )
 			ptr = (char*) malloc( strlen(filter) + 1 );
-			strcpy( ptr, filter );
-		}
 
 		for( i = 0; i < numRead; i++ )
 		{
@@ -597,6 +608,8 @@ int DirGetContents( const char *path, const char *filter, fileInfo_t *fileInfo, 
 
 			if( filter && !(mcEntries[i].attrFile & MC_ATTR_SUBDIR) )
 			{
+				strcpy( ptr, filter );
+
 				c = 0;
 				char *token = strtok( ptr, " " );
 
@@ -636,10 +649,8 @@ int DirGetContents( const char *path, const char *filter, fileInfo_t *fileInfo, 
 		index	= 0;
 		ptr		= NULL;
 
-		if( filter ) {
+		if( filter )
 			ptr = (char*) malloc( strlen(filter) + 1 );
-			strcpy( ptr, filter );
-		}
 
 		// loop through all entries in directory
 		while( nRet > 0 ) {
@@ -668,6 +679,8 @@ int DirGetContents( const char *path, const char *filter, fileInfo_t *fileInfo, 
 
 			if( filter && !(fileInfo[index].flags & FLAG_DIRECTORY) )
 			{
+				strcpy( ptr, filter );
+
 				c = 0;
 				char *token = strtok( ptr, " " );
 
@@ -748,6 +761,30 @@ char *StripFileExt( char *dst, const char *src )
 	return dst;
 }
 
+//
+// StripFileSpec - Removes the trailing file name from a path
+//				   Returns pointer to dst string
+//
+
+char *StripFileSpec( char *dst, const char *src )
+{
+	int	l;
+	char *p; 
+	
+	if( (p = strrchr( src, '/' )) == NULL ) {
+		if( (p = strrchr( src, ':' )) == NULL ) {
+			*dst = 0;
+			return dst;
+		}
+	}
+
+	p++;
+	l = strlen(src) - strlen(p);
+	strncpy( dst, src, l );
+	*(dst + l) = 0;
+
+	return dst;
+}
 
 //
 // DirGetSize - Returns the cumulative size of all files in a directory 

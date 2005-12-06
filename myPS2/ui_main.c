@@ -35,7 +35,8 @@ MA  02110-1301, USA.
 #define ID_PICTUREVIEWER	1
 #define ID_MANAGER			2
 #define ID_ELFLOADER		3
-#define ID_OPTIONS			4
+#define	ID_MYMUSIC			4
+#define ID_OPTIONS			5
 
 typedef struct {
 	menuFramework_t	*menu;
@@ -43,6 +44,7 @@ typedef struct {
 	menuText_t		PicViewer;
 	menuText_t		Manager;
 	menuText_t		ElfLoader;
+	menuText_t		MyMusic;
 	menuText_t		Options;
 
 	IMG_HANDLE		hImgLogo;
@@ -92,10 +94,19 @@ void UI_InitMainMenu( void )
 	s_main.ElfLoader.size				= GR_FONT_SMALL;
 	s_main.ElfLoader.color				= RGB(255, 255, 255);
 
+	s_main.MyMusic.generic.type			= MENU_CONTROL_TEXT;
+	s_main.MyMusic.generic.flags		= 0;
+	s_main.MyMusic.generic.x			= 35;
+	s_main.MyMusic.generic.y			= 130;
+	s_main.MyMusic.generic.id			= ID_MYMUSIC;
+	s_main.MyMusic.text					= "My Music";
+	s_main.MyMusic.size					= GR_FONT_SMALL;
+	s_main.MyMusic.color				= RGB(255, 255, 255);
+
 	s_main.Options.generic.type			= MENU_CONTROL_TEXT;
 	s_main.Options.generic.flags		= 0;
 	s_main.Options.generic.x			= 35;
-	s_main.Options.generic.y			= 140;
+	s_main.Options.generic.y			= 160;
 	s_main.Options.generic.id			= ID_OPTIONS;
 	s_main.Options.text					= "Options";
 	s_main.Options.size					= GR_FONT_SMALL;
@@ -105,6 +116,7 @@ void UI_InitMainMenu( void )
 	UI_AddItemToMenu( s_main.menu, &s_main.PicViewer );
 	UI_AddItemToMenu( s_main.menu, &s_main.Manager );
 	UI_AddItemToMenu( s_main.menu, &s_main.ElfLoader );
+	UI_AddItemToMenu( s_main.menu, &s_main.MyMusic );
 	UI_AddItemToMenu( s_main.menu, &s_main.Options );
 
 	// precache images
@@ -132,6 +144,10 @@ int UI_MainCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsi
 
 				case ID_ELFLOADER:
 					UI_SetActiveMenu(MENU_ELFLOADER);
+					return 1;
+
+				case ID_MYMUSIC:
+					UI_SetActiveMenu(MENU_MYMUSIC);
 					return 1;
 
 				case ID_OPTIONS:
@@ -198,12 +214,6 @@ void UI_MainDraw( void )
 	GR_SetFontColor( RGB(255,255,255) );
 
 	GR_DrawTextExt( 210, 270 + offset, "Thanks to", GR_FONT_SMALL );
-	GR_DrawTextExt( 220, 290 + offset, "- all the people that made PS2SDK", GR_FONT_SMALL );
-	GR_DrawTextExt( 220, 305 + offset, "- Dreamtime", GR_FONT_SMALL );
-	GR_DrawTextExt( 220, 320 + offset, "- Ivaylo Byalkov", GR_FONT_SMALL );
-	GR_DrawTextExt( 220, 335 + offset, "- Pixel", GR_FONT_SMALL );
-	GR_DrawTextExt( 220, 350 + offset, "- Ole", GR_FONT_SMALL );
-	GR_DrawTextExt( 220, 365 + offset, "- Hiryu and Sjeep", GR_FONT_SMALL );
-	GR_DrawTextExt( 220, 380 + offset, "- Jesper Svennevid", GR_FONT_SMALL );
-	GR_DrawTextExt( 220, 395 + offset, "- EP", GR_FONT_SMALL );
+	GR_DrawTextExt( 220, 290 + offset, "Lots of people, too many to list them all here!", GR_FONT_SMALL );
+	GR_DrawTextExt( 220, 305 + offset, "See the Readme for a complete list!", GR_FONT_SMALL );
 }

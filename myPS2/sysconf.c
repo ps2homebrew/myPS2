@@ -39,6 +39,8 @@ const pair_t SC_DEFAULTS[] =
 	{	"scr_adjust_x",			"0",							NULL,	NULL	},
 	{	"scr_adjust_y",			"0",							NULL,	NULL	},
 	{	"scr_mode",				"255",							NULL,	NULL	},
+	{	"scr_screenshot",		"1",							NULL,	NULL	},
+	{	"scr_path",				"host:/",						NULL,	NULL	},
 
 	{	"tbn_caching",			"1",							NULL,	NULL	},
 	{	"tbn_cache_path",		"pfs0:/SYS/THUMBCACHE/",		NULL,	NULL	},
@@ -54,7 +56,7 @@ const pair_t SC_DEFAULTS[] =
 	{	"ftp_login",			DEFAULT_FTP_LOGIN,				NULL,	NULL	},
 	{	"ftp_password",			DEFAULT_FTP_PASSW,				NULL,	NULL	},
 
-	{	"usbd_irx_custom",		"1",							NULL,	NULL	},
+	{	"usbd_irx_custom",		"0",							NULL,	NULL	},
 	{	"usbd_irx_path",		"mc0:/USBD.IRX",				NULL,	NULL	},
 
 	{	"log_enable",			"0",							NULL,	NULL	},
@@ -81,6 +83,8 @@ int SC_LoadConfig( void )
 	char		strKey[256];
 	char		strValue[256];
 
+	char		*pBuffer, *pBufPtr;
+
 	// intialize linked list with default values
 	for( i = 0; i < sizeof(SC_DEFAULTS) / sizeof(pair_t); i++ )
 	{
@@ -95,7 +99,34 @@ int SC_LoadConfig( void )
 	if( fHandle.fh < 0 )
 		return 0;
 
-	while( FileGets( strLine, sizeof(strLine), fHandle ) )
+	len = FileSeek( fHandle, 0, SEEK_END );
+	FileSeek( fHandle, 0, SEEK_SET );
+
+	if( len == 0 ) {
+#ifdef _DEBUG
+		printf("SC_LoadConfig: File size is 0!\n");
+#endif
+		FileClose(fHandle);
+		return 0;
+	}
+
+	// read whole file into memory buffer
+	pBuffer = (char*) malloc( len + 1 );
+	if( pBuffer == NULL ) {
+#ifdef _DEBUG
+		printf("SC_LoadConfig: malloc() failed for pBuffer!\n");
+#endif
+		FileClose(fHandle);
+		return 0;
+	}
+
+	i = FileRead( fHandle, pBuffer, len );
+	pBuffer[ i ] = 0;
+	FileClose(fHandle);
+
+	pBufPtr = pBuffer;
+
+	while( ReadBufLine( &pBufPtr, strLine ) )
 	{
 		// skip comments and empty lines
 		if( strLine[0] == '#' || strLine[0] == '\n' )
@@ -150,7 +181,7 @@ int SC_LoadConfig( void )
 		SC_SetValueForKey_Str( strKey, strValue );
 	}
 
-	FileClose( fHandle );
+	free( pBuffer );
 	return 1;
 }
 
@@ -247,7 +278,7 @@ int SC_SaveConfig( void )
 			return 0;
 		}
 
-		while( SC_ReadBufLine( &pBufPtr, strLine ) )
+		while( ReadBufLine( &pBufPtr, strLine ) )
 		{
 			// skip comments and empty lines
 			if( strLine[0] == '#' || strLine[0] == '\n' ) {
@@ -472,12 +503,12 @@ int SC_SetValueForKey_Double( const char *pKey, double fValue )
 }
 
 //
-// SC_ReadBufLine - Reads a line from a buffer. Newline character is
-//					included in returned string. If end of buffer
-//					is reached 0 is returned.
+// ReadBufLine - Reads a line from a buffer. Newline character is
+//				 included in returned string. If end of buffer
+//				 is reached 0 is returned.
 //
 
-int SC_ReadBufLine( char **ppBuffer, char *pLine )
+int ReadBufLine( char **ppBuffer, char *pLine )
 {
 	while( **ppBuffer ) {
 		*pLine = **ppBuffer;

@@ -70,6 +70,7 @@ int FileRead( FHANDLE handle, void *buffer, int size );
 int FileWrite( FHANDLE handle, void *buffer, int size );
 int FileSeek( FHANDLE handle, long offset, int whence );
 char *FileGets( char *string, int num, FHANDLE fh );
+int FileGetc( FHANDLE fh );
 int FileMkdir( const char *path );
 int FileRemove( const char *file );
 int FileRmdir( const char *path );
@@ -89,6 +90,7 @@ int FileRename( const char *src, const char *dst );
 // other
 int CmpFileExtension( const char *filename, const char *ext );
 char *StripFileExt( char *dst, const char *src );
+char *StripFileSpec( char *dst, const char *src );
 
 // some useful dir functions
 int DirGetContents( const char *path, const char *filter, fileInfo_t *fileInfo, int maxItems );

@@ -17,6 +17,7 @@ EE_OBJS =	$(EE_OBJS_DIR)/main.o			\
 			$(EE_OBJS_DIR)/ui_picview.o		\
 			$(EE_OBJS_DIR)/ui_manager.o		\
 			$(EE_OBJS_DIR)/ui_elfloader.o	\
+			$(EE_OBJS_DIR)/ui_music.o		\
 			$(EE_OBJS_DIR)/ui_install.o		\
 			$(EE_OBJS_DIR)/ui_options.o		\
 			$(EE_OBJS_DIR)/gamepad.o		\
@@ -44,8 +45,6 @@ EE_OBJS =	$(EE_OBJS_DIR)/main.o			\
 			$(EE_OBJS_DIR)/ps2ftpd.o		\
 			$(EE_OBJS_DIR)/sjpcm.o			\
 
-# removed
-#			$(EE_OBJS_DIR)/npm_usbd.o
 
 EE_LIBS	=	-lc			\
 			-lpacket	\
@@ -62,7 +61,9 @@ EE_LIBS	=	-lc			\
 			-lusb		\
 			-lsjpcm		\
 			-lmad		\
-			-lsample
+			-lsample	\
+			-lcdvd		\
+			-ldebug
 
 # add local lib directory
 EE_LDFLAGS += -L./lib

@@ -1395,3 +1395,18 @@ void GR_DrawRoundRect( int x, int y, int width, int height )
 
 }
 
+//
+// GR_Screenshot - Takes a screenshot and saves it to pFile
+//
+
+int GR_Screenshot( const char *pFile )
+{
+	int nRet;
+
+	// requires libdebug and libjpg
+	nRet = jpgScreenshot( pFile, grSettings.grFrameBuf[ grSettings.grDisplayFrame ] / 256,
+						  grModes[ grSettings.grMode ].width, grModes[ grSettings.grMode ].height,
+						  grSettings.grPSM );
+
+	return nRet;
+}

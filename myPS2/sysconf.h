@@ -60,6 +60,6 @@ int SC_SetValueForKey_Str( const char *pKey, const char *pValue );
 int SC_SetValueForKey_Int( const char *pKey, int nValue );
 int SC_SetValueForKey_Double( const char *pKey, double fValue );
 
-int SC_ReadBufLine( char **ppBuffer, char *pLine );
+int ReadBufLine( char **ppBuffer, char *pLine );
 
 #endif

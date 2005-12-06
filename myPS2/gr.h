@@ -40,6 +40,7 @@ MA  02110-1301, USA.
 #include <kernel.h>		// ResetEE, SetGsCrt
 #include <string.h>		// memset
 #include <floatlib.h>	// powf
+#include <libjpg/include/libjpg.h>	// jpgScreenshot
 
 #define RGB(r,g,b)		((0x80 << 24) | (b << 16) | (g << 8) | (r))
 #define RGBA(r,g,b,a)	((a << 24) | (b << 16) | (g << 8) | (r))
@@ -182,5 +183,6 @@ void GR_DrawTextExt( int x, int y, const char *s, int fontSize );
 float GR_SetAlpha( float alpha );
 int GR_SetBlendMode( grBlendMode_e mode );
 void GR_DrawRoundRect( int x, int y, int width, int height );
+int GR_Screenshot( const char *pFile );
 
 #endif

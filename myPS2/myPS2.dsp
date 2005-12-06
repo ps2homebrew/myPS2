@@ -154,6 +154,10 @@ SOURCE=.\ui_menu.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\ui_music.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\ui_options.c
 # End Source File
 # Begin Source File
