@@ -51,7 +51,7 @@ typedef struct {
 int Scheduler_Init( void );
 void Scheduler_Alarm( s32 id, u16 time, void *arg );
 void Scheduler_Run( void );
-s32 Scheduler_BeginThread( void (*thread_func)(void) );
+s32 Scheduler_BeginThread( void (*thread_func)(void*), void *args );
 void Scheduler_EndThread( void );
 void Scheduler_YieldThread( void );
 

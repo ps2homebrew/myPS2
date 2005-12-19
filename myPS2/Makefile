@@ -20,6 +20,7 @@ EE_OBJS =	$(EE_OBJS_DIR)/main.o			\
 			$(EE_OBJS_DIR)/ui_music.o		\
 			$(EE_OBJS_DIR)/ui_install.o		\
 			$(EE_OBJS_DIR)/ui_options.o		\
+			$(EE_OBJS_DIR)/ui_radio.o		\
 			$(EE_OBJS_DIR)/gamepad.o		\
 			$(EE_OBJS_DIR)/elf.o			\
 			$(EE_OBJS_DIR)/timer.o			\
@@ -29,6 +30,8 @@ EE_OBJS =	$(EE_OBJS_DIR)/main.o			\
 			$(EE_OBJS_DIR)/sysconf.o		\
 			$(EE_OBJS_DIR)/mp3.o			\
 			$(EE_OBJS_DIR)/scheduler.o		\
+			$(EE_OBJS_DIR)/net.o			\
+			$(EE_OBJS_DIR)/mcbxml.o			\
 			$(EE_OBJS_DIR)/images.o			\
 			$(EE_OBJS_DIR)/loader.o			\
 			$(EE_OBJS_DIR)/usb_mass.o		\
@@ -41,6 +44,7 @@ EE_OBJS =	$(EE_OBJS_DIR)/main.o			\
 			$(EE_OBJS_DIR)/poweroff.o		\
 			$(EE_OBJS_DIR)/cdvd.o			\
 			$(EE_OBJS_DIR)/ps2ip.o			\
+			$(EE_OBJS_DIR)/ps2ips.o			\
 			$(EE_OBJS_DIR)/ps2smap.o		\
 			$(EE_OBJS_DIR)/ps2ftpd.o		\
 			$(EE_OBJS_DIR)/sjpcm.o			\
@@ -63,7 +67,8 @@ EE_LIBS	=	-lc			\
 			-lmad		\
 			-lsample	\
 			-lcdvd		\
-			-ldebug
+			-ldebug		\
+			-lps2ip
 
 # add local lib directory
 EE_LDFLAGS += -L./lib
@@ -106,6 +111,9 @@ $(EE_OBJS_DIR)/npm_usbd.s:
 
 $(EE_OBJS_DIR)/ps2ip.s:
 	bin2s $(PS2SDK)/iop/irx/PS2IP.IRX $(EE_OBJS_DIR)/ps2ip.s ps2ip_irx
+
+$(EE_OBJS_DIR)/ps2ips.s:
+	bin2s $(PS2SDK)/iop/irx/ps2ips.irx $(EE_OBJS_DIR)/ps2ips.s ps2ips_irx
 
 $(EE_OBJS_DIR)/ps2smap.s:
 	bin2s $(PS2SDK)/iop/irx/PS2SMAP.IRX $(EE_OBJS_DIR)/ps2smap.s ps2smap_irx

@@ -43,6 +43,7 @@ struct pair_s {
 #define DEFAULT_NET_IP		"192.168.0.10"
 #define DEFAULT_NETMASK		"255.0.0.0"
 #define DEFAULT_GATEWAY_IP	"192.168.0.1"
+#define DEFAULT_DNS_IP		"0.0.0.0"
 
 #define DEFAULT_FTP_PORT	"21"
 #define DEFAULT_FTP_LOGIN	"myPS2"

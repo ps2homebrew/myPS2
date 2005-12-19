@@ -49,6 +49,7 @@ extern u8	*ps2ip_irx;
 extern u8	*ps2smap_irx;
 extern u8	*ps2ftpd_irx;
 extern u8	*sjpcm_irx;
+extern u8	*ps2ips_irx;
 
 extern int	size_iomanx_irx;
 extern int	size_filexio_irx;
@@ -63,6 +64,7 @@ extern int	size_ps2ip_irx;
 extern int	size_ps2smap_irx;
 extern int	size_ps2ftpd_irx;
 extern int	size_sjpcm_irx;
+extern int	size_ps2ips_irx;
 
 #define BCD2DEC(bcd)	(((((bcd)>>4) & 0x0F) * 10) + ((bcd) & 0x0F)) 
 #define DEC2BCD(dec)	((((dec)/10)<<4)|((dec)%10))

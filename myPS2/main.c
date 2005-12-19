@@ -38,6 +38,7 @@ MA  02110-1301, USA.
 #include <sbv_patches.h>
 #include <libusb/mass_rpc.h>
 #include <kernel.h>
+#include <ps2ip.h>
 
 #include <gr.h>
 #include <ui.h>
@@ -47,6 +48,7 @@ MA  02110-1301, USA.
 #include <sysconf.h>
 #include <mp3.h>
 #include <scheduler.h>
+#include <net.h>
 
 int main( int argc, char *argv[] )
 {
@@ -103,7 +105,7 @@ int main( int argc, char *argv[] )
 	Scheduler_Init();
 
 	// create ui thread
-	Scheduler_BeginThread( UI_Thread );
+	Scheduler_BeginThread( UI_Thread, NULL );
 
 	Scheduler_Run();
 
@@ -674,42 +676,66 @@ void NET_Init( const char *path )
 		bootmode = BOOT_CD;
 
 	// if booting from HOST modules should already be present
-	if( bootmode == BOOT_HOST ) {
-		nNetInit = 1;
-		return;
+	if( bootmode != BOOT_HOST )
+	{
+		ret = SifExecModuleBuffer( &ps2ip_irx, size_ps2ip_irx, 0, NULL, &irx_ret );
+		if( ret < 0 ) {
+#ifdef _DEBUG
+			printf("SifExecModuleBuffer ps2ip failed: %d\n", ret);
+#endif
+			return;
+		}
+
+		// prepare smap parameters
+		memset( params, 0, sizeof(params) );
+		i = 0;
+
+		SC_GetValueForKey_Str( "net_ip", string );
+		strncpy( &params[i], string, 15 );
+		i += strlen(string) + 1;
+
+		SC_GetValueForKey_Str( "net_netmask", string );
+		strncpy( &params[i], string, 15 );
+		i += strlen(string) + 1;
+
+		SC_GetValueForKey_Str( "net_gateway", string );
+		strncpy( &params[i], string, 15 );
+		i += strlen( string ) + 1;
+
+		// load SMAP module
+		ret = SifExecModuleBuffer( &ps2smap_irx, size_ps2smap_irx, i, &params[0], &irx_ret );
+		if( ret < 0 ) {
+#ifdef _DEBUG
+			printf("SifExecModuleBuffer ps2smap failed: %d\n", ret);
+#endif
+			return;
+		}
 	}
 
-	ret = SifExecModuleBuffer( &ps2ip_irx, size_ps2ip_irx, 0, NULL, &irx_ret );
+	// load ps2ips.irx module (rpc server for ps2ip)
+	ret = SifExecModuleBuffer( &ps2ips_irx, size_ps2ips_irx, 0, NULL, &irx_ret );
 	if( ret < 0 ) {
 #ifdef _DEBUG
-		printf("SifExecModuleBuffer ps2ip failed: %d\n", ret);
+		printf("SifExecModuleBuffer ps2ips failed: %d\n", ret);
 #endif
 		return;
 	}
 
-	// prepare smap parameters
-	memset( params, 0, sizeof(params) );
-	i = 0;
-
-	SC_GetValueForKey_Str( "net_ip", string );
-	strncpy( &params[i], string, 15 );
-	i += strlen(string) + 1;
-
-	SC_GetValueForKey_Str( "net_netmask", string );
-	strncpy( &params[i], string, 15 );
-	i += strlen(string) + 1;
-
-	SC_GetValueForKey_Str( "net_gateway", string );
-	strncpy( &params[i], string, 15 );
-	i += strlen( string ) + 1;
-
-	// load SMAP module
-	ret = SifExecModuleBuffer( &ps2smap_irx, size_ps2smap_irx, i, &params[0], &irx_ret );
-	if( ret < 0 ) {
+	// init ps2ips rpc server
+	if( ps2ip_init() < 0 ) {
 #ifdef _DEBUG
-		printf("SifExecModuleBuffer ps2smap failed: %d\n", ret);
+		printf("NET_Init: ps2ip_init failed!\n");
 #endif
 		return;
+	}
+
+	// setup DNS server address
+	SC_GetValueForKey_Str( "net_dns", string );
+	ret = dnsInit( string );
+	if( ret == 0 ) {
+#ifdef _DEBUG
+		printf("NET_Init: failed to initialize DNS!\n");
+#endif
 	}
 
 	nNetInit = 1;

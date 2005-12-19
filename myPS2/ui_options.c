@@ -428,11 +428,12 @@ void UI_OptionsLoad( void )
 #define ID_NET_IP			3
 #define ID_NET_MASK			4
 #define ID_NET_GW			5
-#define ID_NET_FTP_ENABLE	6
-#define ID_NET_FTP_PORT		7
-#define ID_NET_FTP_ANON		8
-#define ID_NET_FTP_LOGIN	9
-#define ID_NET_FTP_PASSW	10
+#define ID_NET_DNS			6
+#define ID_NET_FTP_ENABLE	7
+#define ID_NET_FTP_PORT		8
+#define ID_NET_FTP_ANON		9
+#define ID_NET_FTP_LOGIN	10
+#define ID_NET_FTP_PASSW	11
 
 typedef struct {
 	menuFramework_t *menu;
@@ -443,6 +444,7 @@ typedef struct {
 	menuText_t		net_ip;
 	menuText_t		net_mask;
 	menuText_t		net_gw;
+	menuText_t		net_dns;
 
 	menuRadio_t		ftpEnable;
 	menuText_t		ftp_port;
@@ -523,10 +525,21 @@ void UI_InitNetworkMenu( void )
 
 	UI_AddItemToMenu( s_network.menu, &s_network.net_gw );
 
+	s_network.net_dns.generic.type		= MENU_CONTROL_TEXT;
+	s_network.net_dns.generic.flags		= 0;
+	s_network.net_dns.generic.x			= 225;
+	s_network.net_dns.generic.y			= 165;
+	s_network.net_dns.generic.id		= ID_NET_DNS;
+	s_network.net_dns.text				= "DNS IP";
+	s_network.net_dns.color				= RGB(255, 255, 255);
+	s_network.net_dns.size				= GR_FONT_SMALL;
+
+	UI_AddItemToMenu( s_network.menu, &s_network.net_dns );
+
 	s_network.ftpEnable.generic.type	= MENU_CONTROL_RADIO;
 	s_network.ftpEnable.generic.flags	= 0;
 	s_network.ftpEnable.generic.x		= 215;
-	s_network.ftpEnable.generic.y		= 180;
+	s_network.ftpEnable.generic.y		= 200;
 	s_network.ftpEnable.generic.id		= ID_NET_FTP_ENABLE;
 	s_network.ftpEnable.width			= 322;
 	s_network.ftpEnable.text			= "Enable FTP Server";
@@ -538,7 +551,7 @@ void UI_InitNetworkMenu( void )
 	s_network.ftp_port.generic.type		= MENU_CONTROL_TEXT;
 	s_network.ftp_port.generic.flags	= 0;
 	s_network.ftp_port.generic.x		= 225;
-	s_network.ftp_port.generic.y		= 200;
+	s_network.ftp_port.generic.y		= 220;
 	s_network.ftp_port.generic.id		= ID_NET_FTP_PORT;
 	s_network.ftp_port.text				= "FTP Port";
 	s_network.ftp_port.color			= RGB(255, 255, 255);
@@ -549,7 +562,7 @@ void UI_InitNetworkMenu( void )
 	s_network.ftp_anon.generic.type		= MENU_CONTROL_RADIO;
 	s_network.ftp_anon.generic.flags	= 0;
 	s_network.ftp_anon.generic.x		= 225;
-	s_network.ftp_anon.generic.y		= 220;
+	s_network.ftp_anon.generic.y		= 240;
 	s_network.ftp_anon.generic.id		= ID_NET_FTP_ANON;
 	s_network.ftp_anon.width			= 312;
 	s_network.ftp_anon.text				= "Anonymous Login";
@@ -561,7 +574,7 @@ void UI_InitNetworkMenu( void )
 	s_network.ftp_login.generic.type	= MENU_CONTROL_TEXT;
 	s_network.ftp_login.generic.flags	= 0;
 	s_network.ftp_login.generic.x		= 225;
-	s_network.ftp_login.generic.y		= 240;
+	s_network.ftp_login.generic.y		= 260;
 	s_network.ftp_login.generic.id		= ID_NET_FTP_LOGIN;
 	s_network.ftp_login.text			= "Login Name";
 	s_network.ftp_login.color			= RGB(255, 255, 255);
@@ -572,7 +585,7 @@ void UI_InitNetworkMenu( void )
 	s_network.ftp_passw.generic.type	= MENU_CONTROL_TEXT;
 	s_network.ftp_passw.generic.flags	= 0;
 	s_network.ftp_passw.generic.x		= 225;
-	s_network.ftp_passw.generic.y		= 260;
+	s_network.ftp_passw.generic.y		= 280;
 	s_network.ftp_passw.generic.id		= ID_NET_FTP_PASSW;
 	s_network.ftp_passw.text			= "Login Password";
 	s_network.ftp_passw.color			= RGB(255, 255, 255);
@@ -618,6 +631,10 @@ int UI_NetworkCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, u
 
 				case ID_NET_GW:
 					UI_OpenEditMenu( "Enter Gateway IP", "net_gateway", MENU_NETWORK );
+					return 1;
+
+				case ID_NET_DNS:
+					UI_OpenEditMenu( "Enter DNS IP", "net_dns", MENU_NETWORK );
 					return 1;
 
 				case ID_NET_FTP_ENABLE:
@@ -671,8 +688,9 @@ void UI_NetworkDraw( void )
 	GR_DrawTextExt( 350, 105, SC_GetValueForKey_Str( "net_ip", NULL ), GR_FONT_SMALL );
 	GR_DrawTextExt( 350, 125, SC_GetValueForKey_Str( "net_netmask", NULL ), GR_FONT_SMALL );
 	GR_DrawTextExt( 350, 145, SC_GetValueForKey_Str( "net_gateway", NULL ), GR_FONT_SMALL );
+	GR_DrawTextExt( 350, 165, SC_GetValueForKey_Str( "net_dns", NULL ), GR_FONT_SMALL );
 
-	GR_DrawTextExt( 350, 200, SC_GetValueForKey_Str( "ftp_port", NULL ), GR_FONT_SMALL );
+	GR_DrawTextExt( 350, 220, SC_GetValueForKey_Str( "ftp_port", NULL ), GR_FONT_SMALL );
 
 }
 

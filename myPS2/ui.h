@@ -32,7 +32,7 @@ MA  02110-1301, USA.
 #ifndef _UI_H
 #define _UI_H
 
-#define MYPS2_VERSION	"0.4" 
+#define MYPS2_VERSION	"0.5" 
 
 #include <gr.h>
 #include <libpad.h>
@@ -44,6 +44,7 @@ MA  02110-1301, USA.
 #include <include/cdvd.h>
 #include <mp3.h>
 #include <libcdvd.h> // cdReadClock
+#include <mcbxml.h>
 
 #include <libjpg/include/libjpg.h>
 
@@ -110,6 +111,7 @@ enum {
 	MENU_MANAGER,
 	MENU_ELFLOADER,
 	MENU_MYMUSIC,
+	MENU_RADIO,
 	MENU_OPTIONS,
 	MENU_NETWORK,
 	MENU_OPTIONS_EDIT,
@@ -259,6 +261,26 @@ typedef struct {
 	menuCommon_t	generic;
 } menuButton_t;
 
+typedef struct {
+	char	*string;
+	u32		flags;
+	u32		value;					// a listview entry can have a 32 bit value
+} menuLVEntry_t;					// associated with it
+
+typedef struct {
+	menuCommon_t	generic;
+	int				width;
+	int				height;
+	int				color;			// color of background rectangle
+
+	menuLVEntry_t	*pEntries;
+	int				numEntries;		// number of entries in listview
+	int				selEntry;
+
+	int				visEntry;
+	int				numDraw;
+} menuList_t;
+
 
 #define UI_DIRVIEW_MARGIN	20		// 20 pixel margin
 #define UI_EDIT_MARGIN		20
@@ -273,8 +295,8 @@ typedef enum {
 	MENU_CONTROL_SLIDER,		// A movable Slider Control
 	MENU_CONTROL_RADIO,			// Radio Button Control
 	MENU_CONTROL_COMBO,			// Combo dropdown like Control
-	MENU_CONTROL_BUTTON			// Regular Button Control
-								// This can replace the TRIBUTTON stuff.
+	MENU_CONTROL_BUTTON,		// Regular Button Control
+	MENU_CONTROL_LIST			// List View Control
 
 } menuContols_e;
 
@@ -325,6 +347,13 @@ typedef enum {
 //
 #define NOT_CB_SEL_CHANGED			0x00000002
 
+// Listview Notifications
+//
+#define NOT_LV_CLICKED_ENTRY		0x00000002
+#define NOT_LV_MARKED_ENTRY			0x00000004
+#define NOT_LV_UNMARKED_ENTRY		0x00000010
+#define NOT_LV_SEL_CHANGED			0x00000020
+
 typedef enum {
 	TRI_UP,
 	TRI_RIGHT,
@@ -337,7 +366,7 @@ typedef enum {
 	RB_STATE_ENABLED
 } rbState_e;
 
-void UI_Thread( void );
+void UI_Thread( void *args );
 void UI_Init( void );
 int UI_AddItemToMenu( menuFramework_t *menu, void *item );
 void UI_DelItemFromMenu( menuFramework_t *menu, void *item );
@@ -405,6 +434,19 @@ void UI_Combo_Clean( menuCombo_t *pCombo );
 const char *UI_Combo_GetSelected( const menuCombo_t *pCombo );
 int UI_Combo_Select( menuCombo_t *pCombo, int nIndex );
 int UI_Combo_SelectByName( menuCombo_t *pCombo, const char *pName );
+
+void UI_InitListControl( menuList_t *pList );
+void UI_DrawListControl( menuList_t *pList );
+int UI_InputListControl( menuList_t *pList, menuFramework_t *menu, u32 buttons );
+void UI_List_SetCursor( menuList_t *pList, int nCursor );
+void UI_List_Clear( menuList_t *pList );
+void UI_List_AddString( menuList_t *pList, const char *pString );
+int UI_List_MarkedCount( const menuList_t *pList );
+const char *UI_List_GetMarked( const menuList_t *pList, int n );
+void UI_List_SetItemData( menuList_t *pList, int n, u32 nValue );
+u32 UI_List_GetItemData( const menuList_t *pList, int n );
+const char *UI_List_GetSelString( const menuList_t *pList );
+int UI_List_GetSelIndex( const menuList_t *pList );
 
 //
 // ui_main.c
@@ -514,5 +556,39 @@ void UI_OpenEditMenu( const char *pHeadline, const char *pEditValue, int GoBackI
 void UI_InitEditMenu( void );
 int UI_EditCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long sParam );
 void UI_EditDraw( void );
+
+//
+// ui_radio.c
+//
+
+typedef struct {
+	char 	*name;
+	char 	*genre;
+	char 	*playing;
+	char	*url;
+	int		listeners;
+	int		bitrate;
+} shoutcastStation_t;
+
+typedef struct {
+	char	*name;
+	char	*url;
+} bookmark_t;
+
+void UI_InitRadioMenu( void );
+int UI_RadioCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, unsigned long sParam );
+void UI_RadioDraw( void );
+int UI_RadioGetStations( void );
+void UI_RadioRefreshListControl( void );
+int UI_RadioParseStationXML( const char *pXMLFile );
+void ParseXMLTree( McbXMLNode *pNode );
+void ParseStationEntry( McbXMLNode *pNode );
+void UI_RadioLoadBookmarks( void );
+void UI_RadioFreeBookmarks( void );
+int UI_RadioSortName( const void *a, const void *b );
+int UI_RadioSortGenre( const void *a, const void *b );
+int UI_RadioSortBR( const void *a, const void *b );
+int UI_RadioSortLC( const void *a, const void *b );
+int UI_RadioGetStationURL( const shoutcastStation_t *pEntry, char *pStationURL, int nSize );
 
 #endif

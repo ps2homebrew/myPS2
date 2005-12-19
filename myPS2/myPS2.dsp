@@ -118,7 +118,15 @@ SOURCE=.\main.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\mcbxml.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\mp3.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\net.c
 # End Source File
 # Begin Source File
 
@@ -164,6 +172,10 @@ SOURCE=.\ui_options.c
 
 SOURCE=.\ui_picview.c
 # End Source File
+# Begin Source File
+
+SOURCE=.\ui_radio.c
+# End Source File
 # End Group
 # Begin Group "Header Files"
 
@@ -194,11 +206,19 @@ SOURCE=.\imgscale.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\mcbxml.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\misc.h
 # End Source File
 # Begin Source File
 
 SOURCE=.\mp3.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\net.h
 # End Source File
 # Begin Source File
 

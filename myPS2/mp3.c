@@ -34,6 +34,7 @@ MA  02110-1301, USA.
 #include <scheduler.h>
 
 #include <mp3.h>
+#include <net.h>
 
 #define TICK	800 * 3
 
@@ -57,8 +58,25 @@ static volatile int	mp3_loop				= 0;
 static volatile int	mp3_tracklength			= 0;
 static volatile int mp3_curtime				= 0;
 
+static volatile int	mp3_streamstatus		= 0; // this is only used with MP3_STREAMING
+
 static s32			mp3_wait_sema;
 static s32			mp3_cancel_sema;
+
+// net streaming thread
+static volatile	int		mp3_net_cancel;
+static volatile int		mp3_net_shutdown;
+static s32				mp3_net_sema;
+static volatile char	mp3_net_meta_title[256];
+static volatile s32		mp3_net_socket;
+static volatile ICY_Header_t mp3_ICYHeader;
+
+// buffer for radio streaming
+static s32			mp3_stream_sema;
+
+static volatile unsigned char	*mp3_streambuf		= NULL;
+static volatile unsigned int	mp3_streambuf_size	= 0;
+
 
 //
 // MP3_Play - Creates the MP3 playback thread.
@@ -190,7 +208,7 @@ int MP3_Play( const char *pFileName )
 	}
 
 	// start mp3 playback thread
-	Scheduler_BeginThread( _mp3_playback );
+	Scheduler_BeginThread( _mp3_playback, NULL );
 
 	return 1;
 }
@@ -300,6 +318,14 @@ const char *MP3_GetTrackName( void )
 	if( MP3_GetStatus() == MP3_STOPPED )
 		return NULL;
 
+	// FIXME
+	if( MP3_GetStatus() == MP3_STREAMING ) {
+		if( mp3_net_meta_title[0] )
+			return (char*) mp3_net_meta_title;
+		else
+			return "Not Available";
+	}
+
 	if( (!current) || (!current->filename) )
 		return NULL;
 
@@ -320,6 +346,9 @@ const char *MP3_GetTrackName( void )
 int MP3_GetTrackLength( void )
 {
 	if( MP3_GetStatus() == MP3_STOPPED )
+		return 0;
+
+	if( MP3_GetStatus() == MP3_STREAMING )
 		return 0;
 
 	return mp3_tracklength;
@@ -349,6 +378,9 @@ void MP3_SetPause( int nPause )
 	if( MP3_GetStatus() == MP3_STOPPED )
 		return;
 
+	if( MP3_GetStatus() == MP3_STREAMING )
+		return;
+
 	WaitSema( mp3_wait_sema );
 	mp3_status = nPause ? MP3_PAUSED : MP3_PLAYING;
 	SignalSema( mp3_wait_sema );
@@ -362,6 +394,9 @@ void MP3_SetPause( int nPause )
 
 void MP3_NextTrack( void )
 {
+	if( MP3_GetStatus() == MP3_STREAMING )
+		return;
+
 	if( !current || !current->next )
 		return;
 
@@ -385,6 +420,9 @@ void MP3_NextTrack( void )
 
 void MP3_PrevTrack( void )
 {
+	if( MP3_GetStatus() == MP3_STREAMING )
+		return;
+
 	if( !current || !current->prev )
 		return;
 
@@ -398,6 +436,149 @@ void MP3_PrevTrack( void )
 	// start new playback thread
 	MP3_Play(NULL);
 }
+
+//
+// MP3_GetStreamStatus - Returns status of radio streaming
+//
+
+int MP3_GetStreamStatus( void )
+{
+	if( mp3_status == MP3_STREAMING )
+		return mp3_streamstatus;
+
+	return 0;
+}
+
+//////////////////////////////////////////////////////////////
+
+//
+// MP3_OpenStream - Attempts to open a connection to a radio
+//					stream server.
+//
+//					Returns STREAM_ERROR_OK on success.
+//
+
+int MP3_OpenStream( const char *pURL )
+{
+	int					nRet, nPort;
+	char				strHost[256], strFile[256];
+	char				strGetReq[1024];
+	struct sockaddr_in	addr;
+
+	if( !mp3_inited && (_mp3_init() < 0 ) )
+		return STREAM_ERROR_INIT;
+
+	if( !pURL )
+		return STREAM_ERROR_URL;
+
+	// make sure current playback and net threads are terminated
+	if( MP3_GetStatus() != MP3_STOPPED )
+		MP3_Stop();
+
+	// extract host information
+	nRet = TokenizeURL( pURL, strHost, strFile, &nPort );
+
+	if( !nRet )
+		return STREAM_ERROR_URL;
+
+	memset( &addr, 0, sizeof(addr) );
+
+	addr.sin_family			= AF_INET;
+	addr.sin_port			= htons(nPort);
+	addr.sin_addr.s_addr	= inet_addr( strHost );
+
+	// not an ip address, try to resolve the hostname
+	if( addr.sin_addr.s_addr == INADDR_NONE ) {
+		if( gethostbyname( (char*) strHost, &addr.sin_addr ) != 0 ) {
+#ifdef _DEBUG
+			printf("MP3_OpenStream: Could not resolve hostname : %s\n", strHost);
+#endif
+			return STREAM_ERROR_RESOLVE;
+		}
+	}
+
+	// connect to radio station
+	mp3_net_socket = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP );
+	if( mp3_net_socket < 0 ) {
+#ifdef _DEBUG
+		printf("MP3_OpenStream: socket() failed!\n");
+#endif
+		return STREAM_ERROR_SOCKET;
+	}
+
+	nRet = connect( mp3_net_socket, (struct sockaddr*)&addr, sizeof(struct sockaddr) );
+	if( nRet < 0 ) {
+#ifdef _DEBUG
+		printf("MP3_OpenStream: connect() failed\n" );
+#endif
+
+		disconnect(mp3_net_socket);
+		return STREAM_ERROR_CONNECT;
+	}
+
+	// prepare the GET request
+	sprintf( strGetReq, "GET %s HTTP/1.0\r\nHost: %s\r\nUser-Agent: %s\r\nAccept: */*\r\nIcy-MetaData:1\r\n\r\n",
+			 strFile, strHost, USER_AGENT );
+
+	nRet = send( mp3_net_socket, strGetReq, strlen(strGetReq), 0 );
+	if( nRet < 0 ) {
+#ifdef _DEBUG
+		printf("MP3_OpenStream: send() failed\n" );
+#endif
+
+		disconnect(mp3_net_socket);
+		return STREAM_ERROR_SEND;
+	}
+
+	// receive and parse the ICY header
+	nRet = _mp3_readIcyHeader( mp3_net_socket, (ICY_Header_t*) &mp3_ICYHeader );
+	if( nRet <= 0 ) {
+#ifdef _DEBUG
+		printf("MP3_OpenStream: error parsing ICY header\n");
+#endif
+		disconnect(mp3_net_socket);
+		return STREAM_ERROR_ICY;
+	}
+
+	// everything ok, can now create recv thread
+	return STREAM_ERROR_OK;
+}
+
+const char *streamError[] = {
+	"",
+	"Initialization error",
+	"Invalid URL",
+	"Could not create socket",
+	"Could not resolve hostname",
+	"Could not connect to server",
+	"Failed sending request",
+	"Erroneous ICY header"
+};
+
+const char *MP3_GetStreamError( int errno )
+{
+	if( errno < 0 || errno >= STREAM_ERROR_NUM )
+		return NULL;
+
+	return streamError[errno];
+}
+
+//
+// MP3_PlayStream - Creates the recv and stream thread.
+//					A connection must have been opened
+//					by MP3_OpenStream prior to calling
+//					this.
+//
+
+void MP3_PlayStream( void )
+{
+	if( mp3_net_socket < 0 )
+		return;
+
+	Scheduler_BeginThread( _mp3_net_thread, NULL );
+	Scheduler_BeginThread( _mp3_stream_thread, NULL );
+}
+
 
 //////////////////////////////////////////////////////////////
 
@@ -430,12 +611,39 @@ int _mp3_init( void )
 	if( (mp3_cancel_sema = CreateSema(&sema)) < 0 )
 		return 0;
 
+	memset( &sema, 0, sizeof(sema) );
+
+	sema.init_count	= 0;
+	sema.max_count	= 1;
+	sema.option		= 0;
+
+	if( (mp3_net_sema = CreateSema(&sema)) < 0 )
+		return 0;
+
+	memset( &sema, 0, sizeof(sema) );
+
+	sema.init_count	= 1;
+	sema.max_count	= 1;
+	sema.option		= 0;
+
+	if( (mp3_stream_sema = CreateSema(&sema)) < 0 )
+		return 0;
+
 	mp3_cancel_playback	= 0;
 	mp3_status			= MP3_STOPPED;
 	mp3_volume			= 0x3FFF;
 	mp3_loop			= 0;
 	mp3_tracklength		= 0;
 	mp3_curtime			= 0;
+
+	mp3_net_cancel		= 0;
+	mp3_net_shutdown	= 0;
+	mp3_net_socket		= -1;
+
+	memset( (ICY_Header_t*)&mp3_ICYHeader, 0, sizeof(mp3_ICYHeader) );
+
+	mp3_streambuf		= NULL;
+	mp3_streambuf_size	= 0;
 
 	mp3_inited			= 1;
 	return 1;
@@ -449,7 +657,7 @@ int _mp3_init( void )
 //				   decoding.
 //
 
-void _mp3_playback( void )
+void _mp3_playback( void *args )
 {
 	FHANDLE fHandle;
 	int		nFileSize;
@@ -580,7 +788,7 @@ void _mp3_playback( void )
 
 	Scheduler_EndThread();
 
-	// other thread can continue
+	// UI thread can continue
 	if( mp3_cancel_playback )
 		SignalSema( mp3_cancel_sema );
 
@@ -622,6 +830,44 @@ int _mp3_decode( unsigned char const *start, unsigned long length )
 
 enum mad_flow _mp3_input( void *data, struct mad_stream *stream )
 {
+	int	nSize;
+	static char *p = NULL;
+
+	if( mp3_status == MP3_STREAMING )
+	{
+		if(p) {
+			free(p);
+			p = NULL;
+		}
+
+		// if there's nothing in the stream buffer we have to
+		// wait until there is new data to feed to the decoder.
+		while( _mp3_stream_pollBuffer() < MP3_STREAM_CHUNK ) {
+			mp3_streamstatus = MP3_STREAM_UNDERRUN;
+
+			if( mp3_net_shutdown )
+				return MAD_FLOW_STOP;
+
+			Scheduler_YieldThread();
+		}
+
+		// check status of network thread. If it is no longer
+		// running we need to stop the decoder
+		if( mp3_net_shutdown )
+			return MAD_FLOW_STOP;
+
+		nSize = _mp3_stream_pollBuffer();
+		p = (unsigned char*) malloc( nSize );
+		if( !p )
+			return MAD_FLOW_BREAK;
+
+		// re-fill the decoder buffer
+		_mp3_stream_getBuffer( p, nSize );
+		mad_stream_buffer( stream, p, nSize );
+
+		return MAD_FLOW_CONTINUE;
+	}
+
 	struct buffer *buffer = data;
 
 	if(!buffer->length)
@@ -697,6 +943,9 @@ enum mad_flow _mp3_output( void *data, struct mad_header const *header, struct m
 
 		nTimer = tnTimeMsec();
 	}
+
+	if( MP3_GetStatus() == MP3_STREAMING )
+		mp3_streamstatus = MP3_STREAM_NORMAL;
 
 	inType.channels		= 2;
 	inType.bits			= 16;
@@ -1002,6 +1251,393 @@ int _mp3_getbitrate_mem( const u8 *pBuffer, int nBufSize )
 	return nBitRate;
 
 }
+
+//
+// _mp3_stream_thread - Entry function
+//
+
+void _mp3_stream_thread( void *args )
+{
+	struct mad_decoder decoder;
+
+	// setup sjPCM stuff
+	SjPCM_Init(0);
+	SjPCM_Clearbuff();
+	SjPCM_Setvol(mp3_volume);
+	SjPCM_Play();
+
+	mp3_tracklength = 0;
+
+	// set status to streaming
+	mp3_status			= MP3_STREAMING;
+
+	 // have not buffered any audio data yet so set this to underrun
+	mp3_streamstatus	= MP3_STREAM_UNDERRUN;
+
+	// configure input, output, and error callback functions
+	mad_decoder_init( &decoder, NULL, _mp3_input, 0, 0, _mp3_output, _mp3_error, 0 );
+
+	// start the decoder loop
+	mad_decoder_run(&decoder, MAD_DECODER_MODE_SYNC);
+
+	// if we reach this the user has either requested to stop
+	// the playback or the network thread has signaled an error and
+	// we need to shut down
+	mad_decoder_finish(&decoder);
+
+	// clean up spu stuff
+	SjPCM_Pause();
+	SjPCM_Quit();
+	SjPCM_Clearbuff();
+
+	mp3_status		= MP3_STOPPED;
+	mp3_curtime		= 0;
+
+	// if mp3_net_shutdown is 1, the shutdown was requested by the
+	// network thread and it has already shut itself down.
+	// otherwise we need to tell it to shut down.
+	if( mp3_net_shutdown == 0 )
+	{
+		// net thread is still running so tell it to stop
+		mp3_net_cancel = 1;
+
+		// this waits until net thread has shut down
+		WaitSema( mp3_net_sema );
+
+		// can now reset this
+		mp3_net_cancel = 0;
+
+	}
+
+	// flush the stream buffer
+	_mp3_stream_flushBuffer();
+
+	// free the thread stack
+	Scheduler_EndThread();
+
+	// if UI thread requested the shutdown. tell it it can continue.
+	if( mp3_cancel_playback )
+		SignalSema( mp3_cancel_sema );
+
+	return;
+}
+
+//
+// _mp3_net_thread - This streams the mpeg audio data from the network
+//					 host.
+//
+
+void _mp3_net_thread( void *args )
+{
+	int					nRet;
+	char				strBuffer[4096];
+	int					i;
+
+	char				strMeta[4096];
+	int					nMetaCount		= 0;
+	int					nMetaLen		= 0;
+	int					nMetaBufIndex	= 0;
+
+	char				streamBuf[4096];
+	int					nStreamBufIndex	= 0;
+
+	if( mp3_net_socket < 0 ) {
+		mp3_net_shutdown = 1;
+		Scheduler_EndThread();
+		return;
+	}
+
+	mp3_net_meta_title[0]	= 0;
+	nMetaCount				= 0;
+
+	while(1)
+	{
+		// mp3 stream thread asks us to shut down
+		if( mp3_net_cancel ) {
+			disconnect(mp3_net_socket);
+			break;
+		}
+
+		nRet = recv( mp3_net_socket, strBuffer, sizeof(strBuffer), 0 );
+
+		// error occured or server has closed connection
+		if( nRet < 0 || nRet == 0 ) {
+#ifdef _DEBUG
+			printf("_mp3_net_thread: recv() failed (%i)!\n", nRet);
+#endif
+			disconnect(mp3_net_socket);
+
+			// signal stream thread that we encountered an
+			// error and have shut down
+			mp3_net_shutdown = 1;
+			break;
+		}
+
+		nStreamBufIndex = 0;
+
+		for( i = 0; i < nRet; i++ ) {
+			if( nMetaLen != 0 )
+			{
+				// parse meta data
+				strMeta[ nMetaBufIndex++ ] = strBuffer[i];
+
+				nMetaLen--;
+
+				if( nMetaLen == 0 )
+				{
+					strMeta[ nMetaBufIndex ] = 0x0;
+
+					if( _mp3_parseMetaTitle( strMeta, (char*)mp3_net_meta_title, sizeof(mp3_net_meta_title) ) == 0 )
+						strcpy( (char*)mp3_net_meta_title, "Not Available" );
+				}
+			}
+			else
+			{
+				if( nMetaCount++ < mp3_ICYHeader.meta_int )
+				{
+					// write audio data to buffer
+					streamBuf[ nStreamBufIndex++ ] = strBuffer[i];
+				}
+				else
+				{
+					// read meta data length
+					nMetaLen		= ((unsigned char)strBuffer[i]) * 16;
+					nMetaCount		= 0;
+					nMetaBufIndex	= 0;
+				}
+			}
+		}
+
+		// append audio data to stream buffer
+		if( nStreamBufIndex > 0 )
+			mp3_stream_addBuffer( streamBuf, nStreamBufIndex );
+	}
+
+	Scheduler_EndThread();
+
+	// if mp3 stream thread requested the shutdown
+	// signal that we are done
+	if( mp3_net_cancel )
+		SignalSema( mp3_net_sema );
+}
+
+//
+// _mp3_stream_addBuffer - Adds mpeg audio data to the stream buffer.
+//
+
+int mp3_stream_addBuffer( unsigned char *data, int size )
+{
+	unsigned char *p;
+
+	p = (unsigned char*) malloc( mp3_streambuf_size + size );
+	if( p == NULL )
+		return 0;
+
+	WaitSema( mp3_stream_sema );
+
+	if( mp3_streambuf_size > 0 ) {
+		memcpy( p, (unsigned char*) mp3_streambuf, mp3_streambuf_size );
+		free( (unsigned char*) mp3_streambuf );
+	}
+
+	memcpy( p + mp3_streambuf_size, data, size );
+	mp3_streambuf_size += size;
+
+	mp3_streambuf = p;
+
+	SignalSema( mp3_stream_sema );
+	return 1;
+}
+
+//
+// _mp3_stream_pollBuffer - Returns the amount of data in the stream buffer.
+//
+
+unsigned int _mp3_stream_pollBuffer( void )
+{
+	int nRet;
+
+	WaitSema( mp3_stream_sema );
+	nRet = mp3_streambuf_size;
+	SignalSema( mp3_stream_sema );
+
+	return nRet;
+}
+
+//
+// _mp3_stream_getBuffer - Extracts audio data from the stream buffer.
+//
+
+int _mp3_stream_getBuffer( unsigned char *pOut, unsigned int size )
+{
+	unsigned char *p;
+
+	if( size > mp3_streambuf_size )
+		size = mp3_streambuf_size;
+
+	p = (unsigned char*) malloc( mp3_streambuf_size  - size + 1 );
+	if( p == NULL )
+		return 0;
+
+	WaitSema( mp3_stream_sema );
+	
+	memcpy( pOut, (unsigned char*) mp3_streambuf, size );
+	memcpy( p, (unsigned char*) (mp3_streambuf + size), mp3_streambuf_size - size );
+
+	free( (unsigned char*) mp3_streambuf );
+	mp3_streambuf_size -= size;
+
+	mp3_streambuf = p;
+
+	SignalSema( mp3_stream_sema );
+	return 1;
+}
+
+//
+// _mp3_stream_flushBuffer - Flushes the stream buffer.
+//
+
+
+int _mp3_stream_flushBuffer( void )
+{
+	WaitSema( mp3_stream_sema );
+
+	if( mp3_streambuf )
+		free( (unsigned char*)mp3_streambuf );
+
+	mp3_streambuf		= NULL;
+	mp3_streambuf_size	= 0;
+
+	SignalSema( mp3_stream_sema );
+	return 1;
+}
+
+//
+// _mp3_readIcyHeader - Reads the shoutcast ICY header
+//
+
+int _mp3_readIcyHeader( s32 s, ICY_Header_t *pICYHeader )
+{
+	int index = 0;
+	int	nRet;
+	char c, strLine[1024];
+
+	while(1) {
+		nRet = recv( s, &c, sizeof(char), 0 );
+
+		if( nRet <= 0 )
+			return -1;
+		
+		strLine[index] = c;
+
+		if( strLine[index] == '\n' ) {
+			strLine[ index + 1 ] = 0x0;
+
+			if( strLine[0] == '\r' && strLine[1] == '\n' )
+				return 1;
+
+			if( _mp3_parseIcyLine( strLine, pICYHeader ) == 0 )
+				return 0;
+
+			index = 0;
+		}
+		else {
+			index++;
+		}
+	}
+
+	return 0;
+}
+
+//
+// _mp3_parseIcyLine - Processes a line from the shoutcast ICY header.
+//					   If an error occurs 0 is returned.
+//
+
+int _mp3_parseIcyLine( char *pLine, ICY_Header_t *pICYHeader )
+{
+	char *p;
+
+	p = pLine + strlen(pLine) - 1;
+	while( *p == '\n' || *p == '\r' ) {
+		*p = 0;
+		p--;
+	}
+
+	// if we get a HTTP error code instead of ICY, file probably
+	// doesn't exist
+	if( strstr( pLine, "HTTP " ) )
+		return 0;
+
+	// error code. should be "ICY 200 OK" if everything is ok.
+	if( strstr( pLine, "ICY " ) ) {
+		if( !strstr( pLine, "ICY 200 OK" ) )
+			return 0;
+	}
+	else if( strstr( pLine, "icy-name" ) ) {
+		if( (p = strchr( pLine, ':' )) == NULL )
+			return 0;
+
+		strcpy( pICYHeader->name, ++p );
+	}
+	else if( strstr( pLine, "icy-genre" ) ) {
+		if( (p = strchr( pLine, ':' )) == NULL )
+			return 0;
+
+		strcpy( pICYHeader->genre, ++p );
+	}
+	else if( strstr( pLine, "icy-url" ) ) {
+		if( (p = strchr( pLine, ':' )) == NULL )
+			return 0;
+
+		strcpy( pICYHeader->url, ++p );
+	}
+	else if( strstr( pLine, "icy-br" ) ) {
+		if( (p = strchr( pLine, ':' )) == NULL )
+			return 0;
+
+		pICYHeader->bitrate = atoi(++p);
+	}
+	else if( strstr( pLine, "icy-metaint" ) ) {
+		if( (p = strchr( pLine, ':' )) == NULL )
+			return 0;
+
+		pICYHeader->meta_int = atoi(++p);
+	}
+
+	return 1;
+}
+
+//
+// _mp3_parseMetaTitle - Parses the song title from the meta information
+//
+
+int _mp3_parseMetaTitle( const char *pMeta, char *pTrackName, int nMaxSize )
+{
+	char *p;
+	int	 i = 0;
+
+	p = strstr( pMeta, "StreamTitle='");
+	if( !p )
+		return 0;
+
+	p += strlen("StreamTitle='");
+
+	for( i = 0; i < (int)strlen(p); i++ )
+	{
+		if( p[i] == '\'' )
+			break;
+
+		if( i >= (nMaxSize - 1) )
+			break;
+
+		pTrackName[i] = p[i];
+	}
+
+	pTrackName[i] = 0;
+	return 1;
+}
+
 
 inline unsigned long prng( unsigned long state )
 {

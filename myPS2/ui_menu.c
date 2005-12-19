@@ -31,6 +31,7 @@ MA  02110-1301, USA.
 
 #include <tamtypes.h>
 #include <ui.h>
+#include <scheduler.h>
 
 uiStatic_t uis;
 
@@ -38,7 +39,7 @@ uiStatic_t uis;
 // UI_Thread - UI thread entry function
 //
 
-void UI_Thread( void )
+void UI_Thread( void *args )
 {
 	static u64 nPlayTime;
 	u32 padBtns, padBtnsOld;
@@ -48,11 +49,22 @@ void UI_Thread( void )
 
 	while(1)
 	{
+		// may have to re-fresh screen so displayed play time gets updated
+		if( nPlayTime != MP3_GetCurrentTime() ) {
+				nPlayTime = MP3_GetCurrentTime();
+				UI_Refresh();
+		}
+
 		if( !GP_GetPressMode() )
 		{
 			// a button was pressed, inform user interface
-			if( padBtns > padBtnsOld )
+			if( padBtns > padBtnsOld ) {
 				UI_GamepadInput( padBtns );
+			}
+			else {
+				// fixme: wastes most of its time doing nothing..
+				Scheduler_YieldThread();
+			}
 		}
 		else
 		{
@@ -64,12 +76,6 @@ void UI_Thread( void )
 
 		padBtnsOld	= padBtns;
 		padBtns		= GP_GetButtons();
-
-		// may have to re-fresh screen so displayed play time gets updated
-		if( nPlayTime != MP3_GetCurrentTime() ) {
-				nPlayTime = MP3_GetCurrentTime();
-				UI_Refresh();
-		}
 	}
 }
 
@@ -148,6 +154,10 @@ int UI_AddItemToMenu( menuFramework_t *menu, void *item )
 
 		case MENU_CONTROL_COMBO:
 			UI_InitComboControl( (menuCombo_t*)item );
+			break;
+
+		case MENU_CONTROL_LIST:
+			UI_InitListControl( (menuList_t*)item );
 			break;
 	}
 
@@ -411,6 +421,10 @@ void UI_DrawMenu( menuFramework_t *menu )
 			case MENU_CONTROL_COMBO:
 				UI_DrawComboControl( (menuCombo_t*)ptr );
 				break;
+
+			case MENU_CONTROL_LIST:
+				UI_DrawListControl( (menuList_t*)ptr );
+				break;
 		}
 	}
 }
@@ -481,6 +495,10 @@ void UI_SetActiveMenu( int menuId )
 
 		case MENU_MYMUSIC:
 			UI_InitMyMusicMenu();
+			break;
+
+		case MENU_RADIO:
+			UI_InitRadioMenu();
 			break;
 
 		case MENU_OPTIONS:
@@ -591,6 +609,10 @@ void UI_DefaultInputHandler( menuFramework_t *menu, u32 buttons )
 
 		case MENU_CONTROL_COMBO:
 			bHandled = UI_InputComboControl( (menuCombo_t*)item, menu, buttons );
+			break;
+
+		case MENU_CONTROL_LIST:
+			bHandled = UI_InputListControl( (menuList_t*)item, menu, buttons );
 			break;
 	}
 
@@ -2325,4 +2347,407 @@ int UI_Combo_SelectByName( menuCombo_t *pCombo, const char *pName )
 	}
 
 	return -1;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+
+//
+// UI_InitListControl - Initializes List View Control
+//
+
+void UI_InitListControl( menuList_t *pList )
+{
+	int			spacing = 2;
+
+	if( !pList )
+		return;
+
+	pList->pEntries		= NULL;
+	pList->numEntries	= 0;
+	pList->selEntry		= 0;
+	pList->visEntry		= 0;
+
+
+	// this assumes the used font has a height of 15 pixels
+	pList->numDraw = ( pList->height - UI_DIRVIEW_MARGIN * 2 ) / (15 + spacing);
+}
+
+//
+// UI_DrawListControl - Handles Drawing of List View Control
+//
+
+void UI_DrawListControl( menuList_t *pList )
+{
+	int spacing	= 2;
+	int oldColor, color;
+	int i, c;
+	char str[256];
+	int	strIndex;	
+
+	// render background
+	GR_SetDrawColor( pList->color );
+	GR_SetAlpha( 0.25f );
+	GR_SetBlendMode(GR_BLEND_CONSTANT);
+	GR_DrawRoundRect( pList->generic.x, pList->generic.y, 
+					  pList->width, pList->height );
+	GR_SetBlendMode(GR_BLEND_NONE);
+
+	for( i = pList->visEntry, c = 0; i < pList->numEntries; i++, c++ )
+	{
+		// can't display more items
+		if( c >= pList->numDraw )
+			break;
+
+		color = RGB(255, 255, 255);
+
+		// if listview control has focus, color the selected entry green
+		if( (UI_GetSelectedItem(pList->generic.parent) == pList) && (i == pList->selEntry) ) {
+			color = RGB(0, 255, 0);
+		}
+		else if( pList->pEntries[i].flags & FLAG_MARKED ) {
+			// color marked entries pink
+			color = RGB(255, 64, 255);
+		}
+
+		oldColor = GR_SetFontColor( color );
+
+		// make sure string fits into listview control
+		strncpy( str, pList->pEntries[i].string, sizeof(str) );
+		strIndex = strlen(str) - 1;
+
+		while( GR_GetStringWidth( str, GR_FONT_SMALL ) > (pList->width - UI_DIRVIEW_MARGIN * 2) )
+		{
+			str[ strIndex ] = 0;
+
+			if( strIndex > 1 ) {
+				str[ strIndex - 1 ] = '.';
+				str[ strIndex - 2 ] = '.';
+			}
+
+			strIndex--;
+		}
+
+		GR_DrawTextExt( pList->generic.x + UI_DIRVIEW_MARGIN,
+						pList->generic.y + UI_DIRVIEW_MARGIN + c * (15 + spacing),
+						str,
+						GR_FONT_SMALL );
+
+		GR_SetFontColor( oldColor );
+	}
+
+	// do we need to display a scroll indicator?
+	if( pList->numEntries > pList->numDraw )
+	{
+		point_t p[3];
+
+		if( pList->visEntry > 0 )
+		{
+			p[0].x = pList->generic.x + pList->width - 25;
+			p[0].y = pList->generic.y + 10;
+
+			p[1].x = pList->generic.x + pList->width - 20;
+			p[1].y = pList->generic.y + 20;
+
+			p[2].x = pList->generic.x + pList->width - 30;
+			p[2].y = pList->generic.y + 20;
+
+			GR_SetDrawColor( RGB(0, 255, 0) );
+			GR_DrawTriangle( p[0], p[1], p[2] );
+		}
+
+		if( (pList->visEntry + pList->numDraw) < pList->numEntries )
+		{	
+			p[0].x = pList->generic.x + pList->width  - 25;
+			p[0].y = pList->generic.y + pList->height - 10;
+
+			p[1].x = pList->generic.x + pList->width  - 20;
+			p[1].y = pList->generic.y + pList->height - 20;
+
+			p[2].x = pList->generic.x + pList->width  - 30;
+			p[2].y = pList->generic.y + pList->height - 20;
+
+			GR_SetDrawColor( RGB(0, 255, 0) );
+			GR_DrawTriangle( p[0], p[1], p[2] );
+		}
+
+	}
+}
+
+//
+// UI_InputListControl - Handles User Input for List View Control 
+//
+// If Button is handled 1 is returned.
+//
+
+int UI_InputListControl( menuList_t *pList, menuFramework_t *menu, u32 buttons )
+{
+	if( !pList )
+		return 0;
+
+	// list has no entries
+	if( !pList->numEntries )
+		return 0;
+
+	if( buttons & PAD_DOWN ) 
+	{
+		if( pList->selEntry < (pList->numEntries - 1) ) {
+
+			UI_List_SetCursor( pList, pList->selEntry + 1 );
+			UI_Refresh();
+
+			return 1;
+		}
+	}
+	else if( buttons & PAD_UP ) 
+	{
+		if( pList->selEntry > 0 ) {
+
+			UI_List_SetCursor( pList, pList->selEntry - 1 );
+			UI_Refresh();
+
+			return 1;
+		}
+	}
+	else if( buttons & PAD_L1 )
+	{
+		// jump to the top of the list
+		UI_List_SetCursor( pList, 0 );
+		UI_Refresh();
+
+		return 1;
+	}
+	else if( buttons & PAD_R1 )
+	{
+		// jump to the end of the list
+		UI_List_SetCursor( pList, pList->numEntries - 1 );
+		UI_Refresh();
+
+		return 1;
+	}
+	else if( buttons & PAD_CROSS ) 
+	{
+		// clicked on an entry, inform parent
+		pList->generic.parent->callback( pList->generic.parent, MSG_CONTROL, NOT_LV_CLICKED_ENTRY, pList->generic.id );
+		return 1;
+	}
+	else if( buttons & PAD_SQUARE )
+	{
+		// unmark entry
+		if( pList->pEntries[ pList->selEntry ].flags & FLAG_MARKED )
+		{
+			pList->pEntries[ pList->selEntry ].flags &= ~FLAG_MARKED;
+			pList->generic.parent->callback( pList->generic.parent, MSG_CONTROL, NOT_LV_UNMARKED_ENTRY, pList->generic.id );
+		}
+		else
+		{
+			// mark entry
+			pList->pEntries[ pList->selEntry ].flags |= FLAG_MARKED;
+			pList->generic.parent->callback( pList->generic.parent, MSG_CONTROL, NOT_LV_MARKED_ENTRY, pList->generic.id );
+		}
+
+		return 1;
+	}
+
+	// input was not handled so return 0
+	return 0;
+}
+
+//
+// UI_List_SetCursor - Sets the currently selected item in list control.
+//					   Also adjusts visEntry if necessary.
+//
+
+void UI_List_SetCursor( menuList_t *pList, int nCursor )
+{
+	int oldEntry;
+
+	if( !pList )
+		return;
+
+	if( nCursor < 0 || nCursor >= pList->numEntries )
+		return;
+
+	if( nCursor < pList->visEntry ) {
+		pList->visEntry = nCursor;
+	}
+	else if( nCursor >= (pList->visEntry + pList->numDraw) ) {
+		pList->visEntry = nCursor - pList->numDraw + 1;
+	}
+
+	oldEntry = pList->selEntry;
+	pList->selEntry = nCursor;
+
+	// notify parent of selection change
+	if( oldEntry != pList->selEntry ) 
+		pList->generic.parent->callback( pList->generic.parent, MSG_CONTROL, NOT_LV_SEL_CHANGED, pList->generic.id );
+}
+
+//
+// UI_List_Clear - Deletes all items in list control
+//
+
+void UI_List_Clear( menuList_t *pList )
+{
+	int i;
+
+	if( !pList )
+		return;
+
+	for( i = 0; i < pList->numEntries; i++ ) {
+		if( pList->pEntries[i].string )
+			free( pList->pEntries[i].string );
+	}
+
+	if( pList->pEntries )
+		free( pList->pEntries );
+
+	pList->pEntries		= NULL;
+	pList->numEntries	= 0;
+	pList->selEntry		= 0;
+	pList->visEntry		= 0;
+}
+
+//
+// UI_List_AddString - Adds a string to List Control
+//
+
+void UI_List_AddString( menuList_t *pList, const char *pString )
+{
+	int nLen;
+
+	if( !pList || !pString )
+		return;
+
+	pList->pEntries = (menuLVEntry_t*) realloc( pList->pEntries, (1 + pList->numEntries) *
+											    sizeof(menuLVEntry_t) );
+
+	if( !pList->pEntries )
+		return;
+
+	nLen = strlen( pString );
+	pList->pEntries[ pList->numEntries ].string = (char*) malloc( nLen + 1 );
+
+	if( !pList->pEntries[ pList->numEntries ].string )
+		return;
+
+	strcpy( pList->pEntries[ pList->numEntries ].string, pString );	
+	pList->pEntries[ pList->numEntries ].flags	= 0;
+	pList->pEntries[ pList->numEntries ].value	= 0;
+
+	pList->numEntries++;
+}
+
+//
+// UI_List_MarkedCount - Returns the number of "marked" entries in List Control
+//
+
+int UI_List_MarkedCount( const menuList_t *pList )
+{
+	int i;
+	int num = 0;
+
+	if( !pList )
+		return 0;
+
+	for( i = 0; i < pList->numEntries; i++ )
+	{
+		if( pList->pEntries[i].flags & FLAG_MARKED )
+			num++;
+	}
+
+	return num;
+}
+
+//
+// UI_List_GetMarked - Returns a marked string from List Control
+//					   n ranges from 0 to (count - 1).
+//
+
+const char *UI_List_GetMarked( const menuList_t *pList, int n )
+{
+	int i, num = 0;
+
+	if( !pList )
+		return NULL;
+
+	if( n < 0 || n >= UI_List_MarkedCount( pList ) )
+		return NULL;
+
+	for( i = 0; i < pList->numEntries; i++ )
+	{
+		if( pList->pEntries[i].flags & FLAG_MARKED )
+		{
+			if( num == n )
+				return pList->pEntries[i].string;
+
+			num++;
+		}
+	}
+
+	return NULL;
+}
+
+//
+// UI_List_SetItemData - Associates a 32bit value with an item entry in
+//						 list control
+//
+
+void UI_List_SetItemData( menuList_t *pList, int n, u32 nValue )
+{
+	if( !pList )
+		return;
+
+	if( n < 0 || n >= pList->numEntries )
+		return;
+
+	pList->pEntries[n].value = nValue;
+}
+
+//
+// UI_List_GetItemData - Retrieves associated 32bit value of an item entry
+//						 in list control
+//
+
+u32 UI_List_GetItemData( const menuList_t *pList, int n )
+{
+	if( !pList )
+		return 0;
+
+	if( n < 0 || n >= pList->numEntries )
+		return 0;
+
+	return pList->pEntries[n].value;
+}
+
+//
+// UI_List_GetSelString - Returns the currently selected string in list
+//						  control
+//
+
+const char *UI_List_GetSelString( const menuList_t *pList )
+{
+	if( !pList )
+		return NULL;
+
+	if( !pList->numEntries )
+		return NULL;
+
+	return pList->pEntries[ pList->selEntry ].string;
+}
+
+//
+// UI_List_GetSelIndex - Returns the index of the currently selected item
+//						 in list control
+//
+
+int UI_List_GetSelIndex( const menuList_t *pList )
+{
+	if( !pList )
+		return -1;
+
+	if( !pList->numEntries )
+		return -1;
+
+	return pList->selEntry;
 }

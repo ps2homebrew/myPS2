@@ -34,20 +34,22 @@ MA  02110-1301, USA.
 
 #define ID_GOBACK		1
 #define ID_REPEAT		2
-#define	ID_DIRVIEW		3
-#define ID_SEEKBAR		4
-#define ID_PREV			5
-#define ID_PLAY			6
-#define ID_PAUSE		7
-#define ID_STOP			8
-#define ID_NEXT			9
-#define ID_VOLUMEBAR	10
+#define ID_RADIO		3
+#define	ID_DIRVIEW		4
+#define ID_SEEKBAR		5
+#define ID_PREV			6
+#define ID_PLAY			7
+#define ID_PAUSE		8
+#define ID_STOP			9
+#define ID_NEXT			10
+#define ID_VOLUMEBAR	11
 
 typedef struct {
 	menuFramework_t	*menu;
 
 	menuText_t		GoBack;
 	menuText_t		Repeat;
+	menuText_t		Radio;
 
 	menuDirView_t	DirView;
 
@@ -90,10 +92,19 @@ void UI_InitMyMusicMenu( void )
 	s_music.Repeat.size				= GR_FONT_SMALL;
 	s_music.Repeat.color			= RGB(255, 255, 255);
 
+	s_music.Radio.generic.type		= MENU_CONTROL_TEXT;
+	s_music.Radio.generic.flags		= NET_Available() ? 0 : CFL_INACTIVE;
+	s_music.Radio.generic.x			= 35;
+	s_music.Radio.generic.y			= 100;
+	s_music.Radio.generic.id		= ID_RADIO;
+	s_music.Radio.text				= "Shoutcast";
+	s_music.Radio.size				= GR_FONT_SMALL;
+	s_music.Radio.color				= RGB(255, 255, 255);
+
 	s_music.GoBack.generic.type		= MENU_CONTROL_TEXT;
 	s_music.GoBack.generic.flags	= 0;
 	s_music.GoBack.generic.x		= 35;
-	s_music.GoBack.generic.y		= 100;
+	s_music.GoBack.generic.y		= 130;
 	s_music.GoBack.generic.id		= ID_GOBACK;
 	s_music.GoBack.text				= "Go Back";
 	s_music.GoBack.size				= GR_FONT_SMALL;
@@ -169,6 +180,7 @@ void UI_InitMyMusicMenu( void )
 	s_music.VolumeBar.height		= 10;
 
 	UI_AddItemToMenu( s_music.menu, &s_music.Repeat );
+	UI_AddItemToMenu( s_music.menu, &s_music.Radio );
 	UI_AddItemToMenu( s_music.menu, &s_music.GoBack );
 	UI_AddItemToMenu( s_music.menu, &s_music.DirView );
 	UI_AddItemToMenu( s_music.menu, &s_music.SeekBar );
@@ -209,6 +221,10 @@ int UI_MyMusicCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, u
 					UI_Refresh();
 					return 1;
 
+				case ID_RADIO:
+					UI_SetActiveMenu(MENU_RADIO);
+					return 1;
+
 				case ID_DIRVIEW:
 					switch( fParam )
 					{
@@ -240,6 +256,7 @@ int UI_MyMusicCallback( menuFramework_t *pMenu, int nMsg, unsigned int fParam, u
 
 				case ID_STOP:
 					MP3_Stop();
+					UI_Refresh();
 					return 1;
 
 				case ID_NEXT:
@@ -372,6 +389,24 @@ void UI_MyMusicDraw( void )
 
 		case MP3_PAUSED:
 			pStr = "Playback Paused";
+			break;
+
+		case MP3_STREAMING:
+			switch( MP3_GetStreamStatus() )
+			{
+				// not enough audio data bufferd
+				case MP3_STREAM_UNDERRUN:
+					pStr = "Buffering...";
+					break;
+
+				case MP3_STREAM_NORMAL:
+					pStr = "Streaming...";
+					break;
+			}
+			break;
+
+		default:
+			pStr = "";
 			break;
 	}
 

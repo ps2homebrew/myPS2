@@ -136,7 +136,7 @@ void Scheduler_Run( void )
 // Scheduler_BeginThread - Creates a new thread
 //
 
-s32 Scheduler_BeginThread( void (*thread_func)(void) )
+s32 Scheduler_BeginThread( void (*thread_func)(void*), void *args )
 {
 	int i;
 	ee_thread_t thread;
@@ -173,7 +173,7 @@ s32 Scheduler_BeginThread( void (*thread_func)(void) )
 	threadStack[i].used		= 1;
 	threadStack[i].thread	= thread_id;
 
-	StartThread( thread_id, NULL );
+	StartThread( thread_id, args );
 
 	numThreads++;
 
