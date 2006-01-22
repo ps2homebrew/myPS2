@@ -11,7 +11,7 @@ COMPILING
 You need to have PS2SDK to compile myPS2.
 
 IRX files are not allowed in the SVN repository so you will have to
-download these 2 modules before compiling :
+download these 2 modules before compiling:
 	
 	CDVD.IRX
 	Can be found on ps2dev.org under "Projects"
