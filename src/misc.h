@@ -97,6 +97,7 @@ typedef enum {
 	BOOT_HOST,
 	BOOT_MC,
 	BOOT_HDD,
+	BOOT_USB,
 	BOOT_CD
 } bootDevice_t;
 

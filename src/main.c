@@ -56,9 +56,8 @@ MA  02110-1301, USA.
 
 int main( int argc, char *argv[] )
 {
+	int nRet;
 	int bSafeMode = 0;
-
-	SetElfPath( argv[0] );
 
 	// initialize dmaKit
 	dmaKit_init( D_CTRL_RELE_ON, D_CTRL_MFD_OFF, D_CTRL_STS_UNSPEC,
@@ -69,15 +68,14 @@ int main( int argc, char *argv[] )
 	// setup loading screen
 	Bootscreen_Init();
 
+	SetElfPath( argv[0] );
 	loadModules( argv[0] );
 
 	tnTimeInit();
-
-	// init memory card
-	MC_Init();
-
-	// gamepad
 	GP_Init();
+	MC_Init();
+	HDD_Init();
+	USB_Init();
 
 	// boot in safe mode?
 	if( GP_GetButtons() & (PAD_R1 | PAD_R2 | PAD_L1 | PAD_L2) )
@@ -86,17 +84,17 @@ int main( int argc, char *argv[] )
 	// load system config
 	SC_LoadConfig(bSafeMode);
 
+	// mount partitions in system config mount list
+	Bootscreen_printf("\tMounting partitions in mountlist: ");
+	nRet = HDD_MountList();
+	Bootscreen_printf("%i Errors\n", nRet);
+
 	// cdReadClock
 	cdInit(CDVD_INIT_NOCHECK);
 	
 	// initialize network
 	NET_Init( argv[0] );
-
 	FTP_Init();
-
-	// init hdd and usb
-	HDD_Init();
-	USB_Init();
 
 	// init the user interface
 	GUI_Init();
@@ -139,6 +137,8 @@ void loadModules( const char *path )
 	hddPreparePoweroff();
 
 	// install sbv patch fix
+	Bootscreen_printf("Installing SBV Patch...\n");
+
 	sbv_patch_enable_lmb();
 	sbv_patch_disable_prefix_check();
 
@@ -151,22 +151,19 @@ void loadModules( const char *path )
 	else if( !strncmp( path, "mc", i ) ) {
 		bootmode = BOOT_MC;
 	}
-	else if( !strncmp( path, "hdd", i ) ) {
-		bootmode = BOOT_HDD;
+	else if( !strncmp( path, "mass", i ) ) {
+		bootmode = BOOT_USB;
 	}
-	else {
+	else if( !strncmp( path, "cdrom", i ) ) {
 		CD_Init();
 		bootmode = BOOT_CD;
 	}
 
-	Bootscreen_printf("Loading IRX modules...\n");
+	Bootscreen_printf("Loading basic IRX modules...\n");
 
 	// SIO stuff
 	ret = SifLoadModule("rom0:SIO2MAN", 0, NULL);
 	if( ret < 0 ) {
-#ifdef _DEBUG
-		printf("sifLoadModule sio failed: %d\n", ret);
-#endif
 		Bootscreen_printf("\t^2SifLoadModule^0: failed to load SIO2MAN (%d)", ret );
 		SleepThread();
 	}
@@ -221,7 +218,8 @@ void loadModules( const char *path )
 		SleepThread();
 	}
 
-	if( bootmode != BOOT_HOST )
+#ifndef _DEVELOPER
+//	if( bootmode != BOOT_HOST )
 	{
 		// DEV9 driver (embedded in ELF)
 		ret = SifExecModuleBuffer( &ps2dev9_irx, size_ps2dev9_irx, 0, NULL, &irx_ret );
@@ -233,6 +231,7 @@ void loadModules( const char *path )
 			SleepThread();
 		}
 	}
+#endif
 
 	// ATAD driver (embedded in ELF)
 	ret = SifExecModuleBuffer( &ps2atad_irx, size_ps2atad_irx, 0, NULL, &irx_ret );
@@ -341,13 +340,18 @@ void SetElfPath( const char *argv )
 	if( ptr == NULL ) {
 		ptr = strrchr( strElfPath, '\\' );
 		if( ptr == NULL ) {
-			Bootscreen_printf("Invalid Path (%s)!\n", argv);
-			SleepThread();
+			ptr = strrchr( strElfPath, ':' );
+			if( ptr == NULL ) {
+				Bootscreen_printf("Invalid Path (%s)!\n", argv);
+				SleepThread();
+			}
 		}
 	}
 
 	ptr++;
 	*ptr = '\0';
+
+	Bootscreen_printf("SetElfPath: %s\n", strElfPath);
 }
 
 const char *GetElfPath( void )
@@ -357,16 +361,24 @@ const char *GetElfPath( void )
 
 void ResetIOP( void )
 {
+	Bootscreen_printf("Resetting IOP...\n");
+
 	SifIopReset("rom0:UDNL rom0:EELOADCNF",0);
-	while(SifIopSync());
-	
+	while(!SifIopSync());
+
 	fioExit();
 	SifExitIopHeap();
 	SifLoadFileExit();
+
+	Bootscreen_printf("\tcalling SifExitRpc()...\n");
 	SifExitRpc();
+
+	Bootscreen_printf("\tcalling SifExitCmd()...\n");
 	SifExitCmd();
 
+	Bootscreen_printf("\tcalling SifInitRpc(0)...\n");
 	SifInitRpc(0);
+
 	FlushCache(0);
 	FlushCache(2);
 }
@@ -452,11 +464,6 @@ void HDD_Init( void )
 			bHddAvail = HDD_AVAIL;
 		}
 	}
-
-	// mount other partitions in mountlist
-	Bootscreen_printf("\tMounting partitions in mountlist: ");
-	nRet = HDD_MountList();
-	Bootscreen_printf("%i Errors\n", nRet);
 }
 
 //
@@ -574,6 +581,9 @@ int HDD_MountList( void )
 	HDD_UnmountList();
 
 	SC_GetValueForKey_Str( "part_mount_list", strMntList );
+
+	if( !strMntList[0] )
+		return 0;
 
 	pToken = strtok( strMntList, "," );
 	while( pToken ) {
@@ -806,6 +816,9 @@ void USB_Init( void )
 		Bootscreen_printf("^2Warning^0: Failed to bind usb_mass RPC server\n");
 		return;
 	}
+	else {
+		Bootscreen_printf("usb_mass_bindRPC ^1OK^0\n");
+	}
 
 	// everything's ok
 	nUSBInit = 1;
@@ -838,7 +851,9 @@ int nFTPInit = 0;
 void NET_Init( const char *path )
 {
 	int ret, i, bootmode, irx_ret;
+#ifndef _DEVELOPER
 	char params[256];
+#endif
 	char string[256];
 
 	// Config.dat should have been loaded by now
@@ -859,16 +874,14 @@ void NET_Init( const char *path )
 	else
 		bootmode = BOOT_CD;
 
-	// if booting from HOST modules should already be present
-	if( bootmode != BOOT_HOST )
+	// now this assumption was just wrong
+#ifndef _DEVELOPER
+//	if( bootmode != BOOT_HOST )
 	{
 		Bootscreen_printf("\tLoading PS2IP module: ");
 
 		ret = SifExecModuleBuffer( &ps2ip_irx, size_ps2ip_irx, 0, NULL, &irx_ret );
 		if( ret < 0 ) {
-#ifdef _DEBUG
-			printf("SifExecModuleBuffer ps2ip failed: %d\n", ret);
-#endif
 			Bootscreen_printf("^2FAILED\n");
 			return;
 		}
@@ -897,9 +910,6 @@ void NET_Init( const char *path )
 
 		ret = SifExecModuleBuffer( &ps2smap_irx, size_ps2smap_irx, i, &params[0], &irx_ret );
 		if( ret < 0 ) {
-#ifdef _DEBUG
-			printf("SifExecModuleBuffer ps2smap failed: %d\n", ret);
-#endif
 			Bootscreen_printf("^2FAILED\n");
 			return;
 		}
@@ -907,6 +917,7 @@ void NET_Init( const char *path )
 			Bootscreen_printf("^1OK\n");
 		}
 	}
+#endif
 
 	// load ps2ips.irx module (rpc server for ps2ip)
 	Bootscreen_printf("\tLoading PS2IPS module: ");
