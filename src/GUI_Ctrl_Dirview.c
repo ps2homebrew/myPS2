@@ -32,7 +32,7 @@ void GUI_Ctrl_Dirview_Draw( const GUIControl_t *pCtrl )
 	unsigned int nItemHeight, nTextPosY, nTextPosX, nStrIndex;
 	const GUIMenuImage_t *pTexNoFocus, *pTexFocus, *pTexMarked,
 		*pTex, *pScrollTex;
-	const GUIMenuFont_t *pFont;
+	const GUIFont_t *pFont;
 	fileInfo_t *pItem;
 	char szStr[ MAX_PATH + 1 ];
 	GUICtrl_Dirview_t *pDir = pCtrl->pCtrl;
@@ -53,7 +53,7 @@ void GUI_Ctrl_Dirview_Draw( const GUIControl_t *pCtrl )
 	if( !pTexMarked )
 		return;
 
-	pFont = GUI_MenuGetFont( pCtrl->pParent, pDir->nFontIdx );
+	pFont = GUI_FontGet( pDir->nFontIdx );
 	if( !pFont )
 		return;
 
@@ -90,9 +90,8 @@ void GUI_Ctrl_Dirview_Draw( const GUIControl_t *pCtrl )
 		nTextPosX	= pCtrl->nPosX + pDir->nTextOffset;
 		nTextPosY	= nItemPosY + (nItemHeight - gsLib_font_height(pFont->gsFont)) / 2;
 
-		strncpy( szStr, pItem->name, MAX_PATH );
-		szStr[MAX_PATH] = 0;
-		nStrIndex		= strlen(szStr) - 1;
+		CharsetConvert_UTF8ToCharset( szStr, pItem->name, sizeof(szStr) );
+		nStrIndex	= strlen(szStr) - 1;
 
 		while( gsLib_font_width( pFont->gsFont, szStr ) > (pDir->nWidth - pDir->nTextOffset * 2) )
 		{
@@ -152,6 +151,7 @@ void GUI_Ctrl_Dirview_Init( GUIControl_t *pCtrl )
 	int			nHDD, i;
 	char		szPfs[32];
 	fileInfo_t	file;
+	const char	*pMnt;
 
 	GUI_Ctrl_Dirview_Clean(pCtrl);
 
@@ -168,12 +168,29 @@ void GUI_Ctrl_Dirview_Init( GUIControl_t *pCtrl )
 			file.size	= 0;
 
 			GUI_Ctrl_Dirview_AddItem( pCtrl, &file );
+
+			// add boot partition
+			if( GetBootMode() == BOOT_HDD )
+			{
+				if( (pMnt = BootMntPoint()) )
+				{
+					if( strcmp( pMnt, "pfs0" ) )
+					{
+						strcpy( file.name, "pfs1:" );
+
+						file.flags	= FLAG_DIRECTORY;
+						file.size	= 0;
+
+						GUI_Ctrl_Dirview_AddItem( pCtrl, &file );
+					}
+				}
+			}
 		}
 
 		// add other mounted partitions to list
 		for( i = 0; i < HDD_NumMounted(); i++ )
 		{
-			snprintf( szPfs, sizeof(szPfs), "pfs%i:", i + 1 );
+			snprintf( szPfs, sizeof(szPfs), "pfs%i:", i + 2 );
 
 			strcpy( file.name, szPfs );
 
@@ -317,9 +334,9 @@ void GUI_Ctrl_Dirview_SetCursor( GUIControl_t *pCtrl, unsigned int nPos )
 {
 	unsigned int nItemHeight, nNumDraw, nOld;
 	GUICtrl_Dirview_t *pDir = pCtrl->pCtrl;
-	const GUIMenuFont_t *pFont;
+	const GUIFont_t *pFont;
 
-	pFont = GUI_MenuGetFont( pCtrl->pParent, pDir->nFontIdx );
+	pFont = GUI_FontGet( pDir->nFontIdx );
 
 	nItemHeight = pDir->nItemHeight ? pDir->nItemHeight : gsLib_font_height(pFont->gsFont);
 	nNumDraw	= pDir->nHeight / (nItemHeight + pDir->nPadding);

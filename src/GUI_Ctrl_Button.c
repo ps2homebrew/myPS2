@@ -25,7 +25,7 @@ MA  02110-1301, USA.
 void GUI_Ctrl_Button_Draw( const GUIControl_t *pCtrl )
 {
 	const GUIMenuImage_t	*pImgHandle;
-	const GUIMenuFont_t		*pFontHandle;
+	const GUIFont_t			*pFont;
 	unsigned int			nIdx;
 	GUICtrl_Button_t		*pButton = pCtrl->pCtrl;
 	u64						uTexColor;
@@ -96,17 +96,16 @@ void GUI_Ctrl_Button_Draw( const GUIControl_t *pCtrl )
 		if( pButton->nFontIdx == -1 )
 			return;
 
-		if( !(pFontHandle = GUI_MenuGetFont( pCtrl->pParent, pButton->nFontIdx )) )
+		if( !(pFont = GUI_FontGet( pButton->nFontIdx )) )
 			return;
 
 		pLangStr = pButton->lpStr;
+		CharsetConvert_UTF8ToCharset( szDisplayStr, pLangStr, sizeof(szDisplayStr) );
 
-		strncpy( szDisplayStr, pLangStr, MAX_PATH );
-		szDisplayStr[ MAX_PATH ] = 0;
 		nStrIndex = strlen(szDisplayStr) - 1;
 
-		while( gsLib_font_width( pFontHandle->gsFont, szDisplayStr ) > ( nLabelWidth -
-																		 pButton->nTextOffsetX) )
+		while( gsLib_font_width( pFont->gsFont, szDisplayStr ) > (	nLabelWidth -
+																	pButton->nTextOffsetX) )
 		{
 			szDisplayStr[ nStrIndex ] = 0;
 
@@ -132,25 +131,25 @@ void GUI_Ctrl_Button_Draw( const GUIControl_t *pCtrl )
 		}
 		else if( pButton->nAlign & GUI_LABEL_RIGHT )
 		{
-			nLabelPosX += nLabelWidth - gsLib_font_width( pFontHandle->gsFont, szDisplayStr ) -
+			nLabelPosX += nLabelWidth - gsLib_font_width( pFont->gsFont, szDisplayStr ) -
 						  pButton->nTextOffsetX;	
 		}
 		else if( pButton->nAlign & GUI_LABEL_CENTER )
 		{
-			nLabelPosX += (nLabelWidth - gsLib_font_width( pFontHandle->gsFont, szDisplayStr )) / 2;
+			nLabelPosX += (nLabelWidth - gsLib_font_width( pFont->gsFont, szDisplayStr )) / 2;
 		}
 
 		if( !(pButton->nAlignY & GUI_LABEL_VALIGN_TOP) )
 		{
 			// align middle vertically
-			nLabelPosY += (nLabelHeight - gsLib_font_height(pFontHandle->gsFont)) / 2;
+			nLabelPosY += (nLabelHeight - gsLib_font_height(pFont->gsFont)) / 2;
 		}
 		else
 		{
 			nLabelPosY += pButton->nTextOffsetY;
 		}
 
-		gsLib_font_print( pFontHandle->gsFont, nLabelPosX, nLabelPosY, uLabelColor, szDisplayStr );
+		gsLib_font_print( pFont->gsFont, nLabelPosX, nLabelPosY, uLabelColor, szDisplayStr );
 	}
 }
 

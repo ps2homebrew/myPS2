@@ -6,7 +6,8 @@
 
 EE_INCS		= -I.
 EE_LIB		= libgslib.a
-EE_CFLAGS	+= -DHAVE_LIBJPG
+
+EE_CFLAGS	+= -DHAVE_LIBJPG -DHAVE_LIBPNG
 
 EE_OBJS =	gsCore.o	\
 		gsTexture.o	\

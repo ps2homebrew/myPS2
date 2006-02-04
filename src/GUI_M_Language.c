@@ -25,8 +25,28 @@ MA  02110-1301, USA.
 #include <Sysconf.h>
 
 #define ID_LIST				100
+#define ID_CHARSET			101
 
 #define DLG_LANG_CONFIRM	0
+
+static Charset_t Charset[] =
+{
+	{	"ISO-8859-1",	"Western European (ISO-8859-1)"			},
+	{	"ISO-8859-2",	"Central European (ISO-8859-2)"			},
+	{	"ISO-8859-3",	"Southern European (ISO-8859-3)"		},
+	{	"ISO-8859-4",	"Northern European (ISO-8859-4)"		},
+	{	"ISO-8859-5",	"Latin/Cyrillic (ISO-8859-5)"			},
+	{	"ISO-8859-6",	"Latin/Arabic (ISO-8859-6)"				},
+	{	"ISO-8859-7",	"Latin/Greek (ISO-8859-7)"				},
+	{	"ISO-8859-8",	"Latin/Hebrew (ISO-8859-8)"				},
+	{	"ISO-8859-9",	"Latin-5 Turkish (ISO-8859-9)"			},
+	{	"ISO-8859-10",	"Latin-6 Nordic (ISO-8859-10)"			},
+	{	"ISO-8859-11",	"Latin/Thai (ISO-8859-11)"				},
+	{	"ISO-8859-13",	"Latin-7 Baltic Rim (ISO-8859-13)"		},
+	{	"ISO-8859-14",	"Latin-8 Celtic (ISO-8859-14)"			},
+	{	"ISO-8859-15",	"Latin-9 (ISO-8859-15)"					},
+	{	"ISO-8859-16",	"Latin-10 SE European (ISO-8859-16)"	}
+};
 
 static void ListLanguages( void )
 {
@@ -73,14 +93,32 @@ unsigned int GUI_CB_Language( GUIMenu_t *lpGUIMenu, unsigned int nGUIMsg,
 							  unsigned int nCtrlParam, unsigned int nOther )
 {
 	GUIControl_t	*pCtrl;
-	unsigned int	nNum, i;
-	char			*pStr, szFileName[MAX_PATH + 1];
+	unsigned int	nNum, i, nIndex;
+	char			*pStr, szFileName[MAX_PATH + 1], szOldLang[MAX_PATH + 1];
 	const char		*pSkinName;
+	char			szCharset[256];
 
 	switch( nGUIMsg )
 	{
 		case GUI_MSG_OPEN:
 			ListLanguages();
+
+			pCtrl = GUI_ControlByID(ID_CHARSET);
+			if( pCtrl && GUI_Ctrl_Combo_Empty(pCtrl) )
+			{
+				nIndex = 0;
+				SC_GetValueForKey_Str( "lang_charset", szCharset );
+
+				for( i = 0; i < (sizeof(Charset) / sizeof(Charset[0])); i++ )
+				{
+					if( !strcmp( szCharset, Charset[i].lpCharset ) )
+						nIndex = i;
+
+					GUI_Ctrl_Combo_Add( pCtrl, Charset[i].lpDesc, i );
+				}
+
+				GUI_Ctrl_Combo_SetCurSel( pCtrl, nIndex );
+			}
 			break;
 
 		// free associated item data
@@ -111,6 +149,13 @@ unsigned int GUI_CB_Language( GUIMenu_t *lpGUIMenu, unsigned int nGUIMsg,
 					}
 					break;
 
+				case ID_CHARSET:
+					SC_SetValueForKey_Str( "lang_charset", Charset[ nOther ].lpCharset );
+
+					// reset charset converter
+					CharsetConvert_Reset();
+					break;
+
 				case ID_GO_BACK:
 					GUI_OpenMenu( GUI_MENU_SETTINGS );
 					break;
@@ -127,12 +172,31 @@ unsigned int GUI_CB_Language( GUIMenu_t *lpGUIMenu, unsigned int nGUIMsg,
 						pStr	= (char*) GUI_Ctrl_List_GetItemData( pCtrl,
 									GUI_Ctrl_List_GetSelIndex(pCtrl) );
 
+						SC_GetValueForKey_Str( "lang_file", szOldLang );
 						SC_SetValueForKey_Str( "lang_file", pStr );
+#ifdef _DEVELOPER
+						snprintf( szFileName, sizeof(szFileName),
+									"mc0:/BOOT/MYPS2/language/%s", pStr );
+#else
 						snprintf( szFileName, sizeof(szFileName), "%slanguage/%s",
 								  GetElfPath(), pStr );
+#endif
 
 						GUI_FreeLangTable();
-						GUI_LoadLangTable( szFileName );
+						if( !GUI_LoadLangTable( szFileName ) ) {
+#ifdef _DEVELOPER
+							printf("Failed loading language file : %s\n", pStr);
+							SleepThread();
+#else
+							// re-load old file if new file couldn't be loaded
+							SC_SetValueForKey_Str( "lang_file", szOldLang );
+
+							snprintf( szFileName, sizeof(szFileName), "%slanguage/%s",
+									  GetElfPath(), pStr );
+
+							GUI_LoadLangTable( szFileName );
+#endif
+						}
 
 						// reloading the whole skin takes long...
 						pSkinName = SC_GetValueForKey_Str( "skin_name", NULL );

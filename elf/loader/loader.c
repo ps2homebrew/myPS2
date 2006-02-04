@@ -121,10 +121,26 @@ static int tLoadElf(char *filename)
 	u8 *boot_elf = (u8 *)0x1800000;
 	elf_header_t *eh = (elf_header_t *)boot_elf;
 	elf_pheader_t *eph;
+	char temp[256], *p;
 
 	int fd, size, i, ret;
 
+	// ntba2 -start-
+	fileXioUmount("pfs0:");
+	memset( temp, 0, sizeof(temp) );
+	i = strcspn( filename, ":" );
+	strncpy( temp, filename, i+1 );
+	fileXioUmount(temp);
+	strcpy(temp, "pfs0");
+	p = strstr( filename, ":" );
+	strcat(temp, p);
+	strcpy(filename, temp);
+	scr_printf("Loading %s\n", filename);
+	scr_printf("Mounting Partition %s\n", partition);
 	ret = fileXioMount("pfs0:", partition, FIO_MT_RDONLY);
+	scr_printf("fileXioMount returned %i\n", ret);
+	// ntba2 -end-
+
 	if ((fd = fileXioOpen(filename, O_RDONLY, fileMode)) < 0)
 	{
 		dbgprintf("Failed in fileXioOpen %s\n",filename);
@@ -198,7 +214,9 @@ pkoLoadElf(char *path)
 	else if(!strncmp(path, "mass", 4)) ret = SifLoadElf(path, &elfdata);
     else if(!strncmp(path, "cdrom", 5)) ret = SifLoadElf(path, &elfdata);
     else if(!strncmp(path, "cdfs", 4)) ret = SifLoadElf(path, &elfdata);
-    else if(!strncmp(path, "pfs0", 4)) ret = tLoadElf(path);
+
+	// ntba2
+    else if(!strncmp(path, "pfs", 3)) ret = tLoadElf(path);
     else ret = SifLoadElf(path, &elfdata);
 
     FlushCache(0);

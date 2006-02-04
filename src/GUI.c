@@ -72,20 +72,32 @@ int GUI_Init( void )
 
 	snprintf( szFileName, sizeof(szFileName), "%slanguage/%s", GetElfPath(), szLangFile );
 
-	if( !GUI_LoadLangTable( szFileName ) )
-		return 0;
+	Bootscreen_printf("Loading GUI String Table...", szFileName);
 
+	if( !GUI_LoadLangTable( szFileName ) ) {
+		Bootscreen_printf("^2FAILED\n");
+		return 0;
+	}
+	Bootscreen_printf("^1OK\n");
+
+	snprintf( szSkinPath, sizeof(szSkinPath), "%sskins/%s", GetElfPath(), szSkinName );
+	Bootscreen_printf("Parsing GUI XML files, this may take a few seconds\n");
+
+	if( !GUI_LoadSkin( szSkinPath ) ) {
+		Bootscreen_printf("Error while parsing GUI XML files!\n");
+		return 0;
+	}
+
+	Bootscreen_printf("Everything loaded. Resetting GS and initializing GUI\n");
+	Bootscreen_Shutdown();
+
+	// reset GS, this will kill off the bootscreen
 	gsLib_init( GS_MODE_AUTO, GS_DOUBLE_BUFFERING );
 	gsLib_clear(colorBlack);
 	gsLib_swap();
 
 	gsLib_set_offset( SC_GetValueForKey_Int( "scr_adjust_x", NULL ),
 					  SC_GetValueForKey_Int( "scr_adjust_y", NULL ) );
-
-	snprintf( szSkinPath, sizeof(szSkinPath), "%sskins/%s", GetElfPath(), szSkinName );
-
-	if( !GUI_LoadSkin( szSkinPath ) )
-		return 0;
 
 	// GUI_Init is called before GUI_Run
 	GUI_UpdateTime();
@@ -651,7 +663,8 @@ int GUI_FreeSkin( void )
 	// free GUI Font Storage Table
 	for( i = 0; i < lpGUI->nNumGUIFonts; i++ )
 	{
-		free( lpGUI->pGUIFonts[i].pFont );
+		gsLib_font_destroy( lpGUI->pGUIFonts[i].gsFont );
+
 		free( lpGUI->pGUIFonts[i].pFontName );
 		free( lpGUI->pGUIFonts[i].pFileName );
 	}
@@ -659,10 +672,6 @@ int GUI_FreeSkin( void )
 	// free GS images
 	for( i = 0; i < lpGUI->pActiveMenu->iNumImages; i++ )
 		gsLib_texture_free( lpGUI->pActiveMenu->pImages[i].gsTexture );
-
-	// free GS fonts
-	for( i = 0; i < lpGUI->pActiveMenu->iNumFonts; i++ )
-		gsLib_font_destroy( lpGUI->pActiveMenu->pFonts[i].gsFont );
 
 	lpGUI->nNumGUIImages	= 0;
 	lpGUI->nNumGUIFonts		= 0;
@@ -832,8 +841,12 @@ int GUI_LoadFonts( const char *lpFileName, GUI_t *lpGUI )
 	u8				*pBuf;
 	scew_parser		*pParser;
 	scew_tree		*pTree;
-	scew_element	*pElem, **pList, *pChild;
+	scew_element	*pElem, **pList, *pChild, *pDefault, *pFontset;
 	const char		*pName, *pStr;
+	scew_attribute	*pAttrib;
+	char			szCharset[MAX_PATH + 1];
+
+	SC_GetValueForKey_Str( "lang_charset", szCharset );
 
 	fHandle = FileOpen( lpFileName, O_RDONLY );
 
@@ -901,8 +914,59 @@ int GUI_LoadFonts( const char *lpFileName, GUI_t *lpGUI )
 		return 0;
 	}
 
-	if( (pList = scew_element_list( pElem, "font", &nNum )) == NULL )
+	if( (pList = scew_element_list( pElem, "fontset", &nNum )) == NULL )
 	{
+		free(pBuf);
+		scew_tree_free(pTree);
+		scew_parser_free(pParser);
+		return 0;
+	}
+
+	pDefault	= NULL;
+	pFontset	= NULL;
+
+	for( i = 0; i < nNum; i++ )
+	{
+		pElem = *(pList + i);
+
+		if( (pAttrib = scew_attribute_by_name( pElem, "charset")) == NULL )
+			continue;
+
+		if( (pStr = scew_attribute_value(pAttrib)) == NULL )
+			continue;
+
+		if( !strcmp( pStr, DEFAULT_CHARSET ) )
+			pDefault = pElem;
+
+		if( !strcmp( pStr, szCharset ) )
+		{
+			pFontset = pElem;
+			break;
+		}
+	}
+
+	scew_element_list_free(pList);
+
+	if( pFontset == NULL )
+	{
+		printf("Did not find fontset for charset %s, using default\n", szCharset);
+		pFontset = pDefault;
+	}
+
+	// skin doesn't have default fontset
+	if( pFontset == NULL )
+	{
+		printf("Error: default fontset (%s) not found\n", DEFAULT_CHARSET);
+
+		free(pBuf);
+		scew_tree_free(pTree);
+		scew_parser_free(pParser);
+		return 0;
+	}
+
+	if( (pList = scew_element_list( pFontset, "font", &nNum )) == NULL )
+	{
+		free(pBuf);
 		scew_tree_free(pTree);
 		scew_parser_free(pParser);
 		return 0;
@@ -942,41 +1006,93 @@ int GUI_FontAdd( GUI_t *lpGUI, const char *lpFontName, const char *lpFileName )
 	char			szSkinName[MAX_PATH + 1];
 	char			szFileName[MAX_PATH + 1];
 	FHANDLE			fHandle;
-	int				nSize;
-	unsigned char	*pBuf;
-	GUIFontStore_t	*pFonts;
+	GUIFont_t		*pFonts;
+
+	char			szDAT[MAX_PATH + 1];
+	unsigned char	*pPNGFile, *pDATFile;
+	u32				nPNGSize, nDATSize;
+	GSFONT			*gsFont;
 
 	if( !SC_GetValueForKey_Str( "skin_name", szSkinName ) )
 		return -1;
 
-	snprintf( szFileName, sizeof(szFileName), "%sskins/%s/fonts/%s", GetElfPath(), szSkinName, lpFileName );
+	// try to load PNG file from skin's fonts directory first
+	snprintf( szFileName, sizeof(szFileName), "%sskins/%s/fonts/%s", GetElfPath(),
+			  szSkinName, lpFileName );
 
 	fHandle = FileOpen( szFileName, O_RDONLY );
 	if( fHandle.fh < 0 )
+	{
+		// load from base font directory
+		snprintf( szFileName, sizeof(szFileName), "%sfonts/%s", GetElfPath(), lpFileName );
+		fHandle = FileOpen( szFileName, O_RDONLY );
+	}
+
+	if( fHandle.fh < 0 )
 		return -1;
 
-	nSize = FileSeek( fHandle, 0, SEEK_END );
+	nPNGSize = FileSeek( fHandle, 0, SEEK_END );
 	FileSeek( fHandle, 0, SEEK_SET );
 
-	if( !nSize ) {
+	if( !nPNGSize ) {
 		FileClose(fHandle);
 		return -1;
 	}
 
-	if( (pBuf = malloc( nSize )) == NULL )
+	if( (pPNGFile = malloc( nPNGSize )) == NULL )
 		return -1;
 
-	FileRead( fHandle, pBuf, nSize );
+	FileRead( fHandle, pPNGFile, nPNGSize );
 	FileClose(fHandle);
 
-	pFonts	= malloc( sizeof(GUIFontStore_t) * (lpGUI->nNumGUIFonts + 1) );
+	// load DAT file
+	StripFileExt( szDAT, lpFileName );
+	strncat( szDAT, ".dat", sizeof(szDAT) );
+
+	snprintf( szFileName, sizeof(szFileName), "%sskins/%s/fonts/%s", GetElfPath(),
+			  szSkinName, szDAT );
+
+	fHandle = FileOpen( szFileName, O_RDONLY );
+	if( fHandle.fh < 0 )
+	{
+		snprintf( szFileName, sizeof(szFileName), "%sfonts/%s", GetElfPath(), szDAT );
+		fHandle = FileOpen( szFileName, O_RDONLY );
+	}
+
+	if( fHandle.fh < 0 )
+		return -1;
+
+	nDATSize = FileSeek( fHandle, 0, SEEK_END );
+	FileSeek( fHandle, 0, SEEK_SET );
+
+	if( !nDATSize ) {
+		FileClose(fHandle);
+		return -1;
+	}
+
+	if( (pDATFile = malloc( nDATSize )) == NULL )
+		return -1;
+
+	FileRead( fHandle, pDATFile, nDATSize );
+	FileClose(fHandle);
+
+	// try to create font object
+	if( !(gsFont = gsLib_font_create( GSLIB_FTYPE_BFT, pPNGFile, nPNGSize,
+									  pDATFile, nDATSize )) )
+		return -1;
+
+	free( pPNGFile );
+	free( pDATFile );
+
+	// add font to list
+	pFonts	= malloc( sizeof(GUIFont_t) * (lpGUI->nNumGUIFonts + 1) );
 
 	if( !pFonts )
 		return -1;
 
 	if( lpGUI->pGUIFonts )
 	{
-		memcpy( pFonts, lpGUI->pGUIFonts, lpGUI->nNumGUIFonts * sizeof(GUIFontStore_t) );
+		memcpy( pFonts, lpGUI->pGUIFonts, lpGUI->nNumGUIFonts * sizeof(GUIFont_t) );
 		free(lpGUI->pGUIFonts);
 	}
 
@@ -984,8 +1100,7 @@ int GUI_FontAdd( GUI_t *lpGUI, const char *lpFontName, const char *lpFileName )
 
 	pFonts = &lpGUI->pGUIFonts[ lpGUI->nNumGUIFonts ];
 
-	pFonts->nFontSize	= nSize;
-	pFonts->pFont		= pBuf;
+	pFonts->gsFont		= gsFont;
 
 	if( (pFonts->pFontName = malloc( strlen(lpFontName) + 1 )) == NULL )
 		return -1;
@@ -1002,6 +1117,14 @@ int GUI_FontAdd( GUI_t *lpGUI, const char *lpFontName, const char *lpFileName )
 	return (lpGUI->nNumGUIFonts - 1);
 }
 
+const GUIFont_t *GUI_FontGet( unsigned int nIndex )
+{
+	if( nIndex >= GUI.nNumGUIFonts )
+		return NULL;
+
+	return &GUI.pGUIFonts[ nIndex ];
+}
+
 int GUI_FontLookup( const GUI_t *lpGUI, const char *lpFontName )
 {
 	unsigned int i;
@@ -1013,43 +1136,6 @@ int GUI_FontLookup( const GUI_t *lpGUI, const char *lpFontName )
 	}
 
 	return -1;
-}
-
-const GUIMenuFont_t *GUI_MenuGetFont( const GUIMenu_t *lpGUIMenu, unsigned int nIndex )
-{
-	unsigned int i;
-
-	for( i = 0; i < lpGUIMenu->iNumFonts; i++ )
-	{
-		if( lpGUIMenu->pFonts[i].nIndex == nIndex )
-			return &lpGUIMenu->pFonts[i];
-	}
-
-	return NULL;
-}
-
-int GUI_MenuAddFont( GUIMenu_t *lpGUIMenu, unsigned int nFontIndex )
-{
-	GUIMenuFont_t *pFonts;
-
-	pFonts = malloc( sizeof(GUIMenuFont_t) * (lpGUIMenu->iNumFonts + 1) );
-	if( !pFonts )
-		return -1;
-
-	if( lpGUIMenu->pFonts )
-	{
-		memcpy( pFonts, lpGUIMenu->pFonts, lpGUIMenu->iNumFonts * sizeof(GUIMenuFont_t) );
-		free( lpGUIMenu->pFonts );
-	}
-
-	lpGUIMenu->pFonts = pFonts;
-	pFonts = &lpGUIMenu->pFonts[ lpGUIMenu->iNumFonts ];
-
-	pFonts->nIndex		= nFontIndex;
-	pFonts->gsFont		= NULL;
-
-	lpGUIMenu->iNumFonts++;
-	return 1;
 }
 
 void GUI_OpenMenu( unsigned int nMenuID )
@@ -1065,9 +1151,6 @@ void GUI_OpenMenu( unsigned int nMenuID )
 
 		for( i = 0; i < GUI.pActiveMenu->iNumImages; i++ )
 			gsLib_texture_free( GUI.pActiveMenu->pImages[i].gsTexture );
-
-		for( i = 0; i < GUI.pActiveMenu->iNumFonts; i++ )
-			gsLib_font_destroy( GUI.pActiveMenu->pFonts[i].gsFont );
 	}
 
 	// upload needed textures from EE memory to GS video ram
@@ -1084,7 +1167,7 @@ void GUI_OpenMenu( unsigned int nMenuID )
 			if( !pJpg )
 				continue;
 
-			pRGB = malloc( pJpg->width * pJpg->height * (pJpg->bpp >> 3) );
+			pRGB = memalign( 128, pJpg->width * pJpg->height * (pJpg->bpp >> 3) );
 
 			if( !pRGB )
 				continue;
@@ -1109,7 +1192,7 @@ void GUI_OpenMenu( unsigned int nMenuID )
 			if( !pPng )
 				continue;
 
-			pRGB = malloc( pPng->width * pPng->height * (pPng->bpp >> 3) );
+			pRGB = memalign( 128, pPng->width * pPng->height * (pPng->bpp >> 3) );
 
 			if( !pRGB )
 				break;
@@ -1125,18 +1208,6 @@ void GUI_OpenMenu( unsigned int nMenuID )
 			pngClose(pPng);
 			free( pRGB );
 		}
-	}
-
-	// create fonts and upload them from EE to GS
-	for( i = 0; i < pMenu->iNumFonts; i++ )
-	{
-		if( CmpFileExtension( GUI.pGUIFonts[ pMenu->pFonts[i].nIndex ].pFileName, "BFT" ) )
-		{
-			pMenu->pFonts[i].gsFont = gsLib_font_create( GSLIB_FTYPE_BFT,
-				GUI.pGUIFonts[ pMenu->pFonts[i].nIndex ].pFont );
-		}
-
-		// TODO: add support for TTF
 	}
 
 	GUI.pActiveMenu = pMenu;
@@ -1168,9 +1239,6 @@ void GUI_CloseDialog( GUIMenu_t *pDialog, unsigned int nExitCode, unsigned int n
 
 	for( i = 0; i < pDialog->iNumImages; i++ )
 		gsLib_texture_free( pDialog->pImages[i].gsTexture );
-
-	for( i = 0; i < pDialog->iNumFonts; i++ )
-		gsLib_font_destroy( pDialog->pFonts[i].gsFont );
 
 	GUI.pActiveMenu		= pDialog->pParent;
 

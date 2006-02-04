@@ -434,7 +434,8 @@ int FileSystem_ReadDir( FSContext* pContext, FSFileInfo* pInfo )
 
 					// currently we stop evaluating devices if one was not found (so if mc 1 exists and not mc 0, it will not show)
 					if( ret < 0 )
-						return -1;
+						continue;	// ntba2
+			//			return -1;
 
 					itoa(pInfo->m_Name,unit);
 					pInfo->m_iSize = 0;

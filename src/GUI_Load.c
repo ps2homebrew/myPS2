@@ -345,10 +345,6 @@ int GUI_Load_Label( const scew_element *lpElement, GUI_t *lpGUI, GUIMenu_t *lpGU
 			if( nIdx < 0 )
 				return 0;
 
-			// add font index to list of menu font indices
-			if( GUI_MenuGetFont( lpGUIMenu, nIdx ) == NULL )
-				GUI_MenuAddFont( lpGUIMenu, nIdx );
-
 			pLabel->nFontIdx = nIdx;
 		}
 	}
@@ -503,9 +499,6 @@ int GUI_Load_Button( const scew_element *lpElement, GUI_t *lpGUI, GUIMenu_t *lpG
 
 			if( nIdx < 0 )
 				return 0;
-
-			if( GUI_MenuGetFont( lpGUIMenu, nIdx ) == NULL )
-				GUI_MenuAddFont( lpGUIMenu, nIdx );
 
 			pButton->nFontIdx = nIdx;
 		}
@@ -996,9 +989,6 @@ int GUI_Load_ThumbnailPanel( const scew_element *lpElement, GUI_t *lpGUI, GUIMen
 			if( nIdx < 0 )
 				return 0;
 
-			if( GUI_MenuGetFont( lpGUIMenu, nIdx ) == NULL )
-				GUI_MenuAddFont( lpGUIMenu, nIdx );
-
 			pPanel->nFontIdx = nIdx;
 		}
 	}
@@ -1210,9 +1200,6 @@ int GUI_Load_List( const scew_element *lpElement, GUI_t *lpGUI, GUIMenu_t *lpGUI
 
 			if( nIdx < 0 )
 				return 0;
-
-			if( GUI_MenuGetFont( lpGUIMenu, nIdx ) == NULL )
-				GUI_MenuAddFont( lpGUIMenu, nIdx );
 
 			pList->nFontIdx = nIdx;
 		}
@@ -1426,9 +1413,6 @@ int GUI_Load_Dirview( const scew_element *lpElement, GUI_t *lpGUI, GUIMenu_t *lp
 
 			if( nIdx < 0 )
 				return 0;
-
-			if( GUI_MenuGetFont( lpGUIMenu, nIdx ) == NULL )
-				GUI_MenuAddFont( lpGUIMenu, nIdx );
 
 			pDirview->nFontIdx = nIdx;
 		}
@@ -1738,9 +1722,6 @@ int GUI_Load_ToggleButton( const scew_element *lpElement, GUI_t *lpGUI, GUIMenu_
 			if( nIdx < 0 )
 				return 0;
 
-			if( GUI_MenuGetFont( lpGUIMenu, nIdx ) == NULL )
-				GUI_MenuAddFont( lpGUIMenu, nIdx );
-
 			pButton->nFontIdx = nIdx;
 		}
 	}
@@ -1895,9 +1876,6 @@ int GUI_Load_Combo( const scew_element *lpElement, GUI_t *lpGUI, GUIMenu_t *lpGU
 
 			if( nIdx < 0 )
 				return 0;
-
-			if( GUI_MenuGetFont( lpGUIMenu, nIdx ) == NULL )
-				GUI_MenuAddFont( lpGUIMenu, nIdx );
 
 			pButton->nFontIdx = nIdx;
 		}

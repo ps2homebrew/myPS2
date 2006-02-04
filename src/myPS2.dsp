@@ -94,6 +94,10 @@ SOURCE=.\cdvd_rpc.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\charset.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\elf.c
 # End Source File
 # Begin Source File
@@ -263,6 +267,10 @@ SOURCE=.\cdvd.h
 # Begin Source File
 
 SOURCE=.\cdvd_rpc.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\charset.h
 # End Source File
 # Begin Source File
 

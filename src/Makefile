@@ -51,6 +51,7 @@ EE_OBJS =	$(EE_OBJS_DIR)/main.o			\
 		$(EE_OBJS_DIR)/bootscreen.o		\
 		$(EE_OBJS_DIR)/mass_rpc.o		\
 		$(EE_OBJS_DIR)/cdvd_rpc.o		\
+		$(EE_OBJS_DIR)/charset.o		\
 		$(EE_OBJS_DIR)/sjpcm_rpc.o		\
 		$(EE_OBJS_DIR)/loader.o			\
 		$(EE_OBJS_DIR)/usb_mass.o		\
@@ -67,6 +68,9 @@ EE_OBJS =	$(EE_OBJS_DIR)/main.o			\
 		$(EE_OBJS_DIR)/ps2smap.o		\
 		$(EE_OBJS_DIR)/ps2ftpd.o		\
 		$(EE_OBJS_DIR)/sjpcm.o			\
+		$(EE_OBJS_DIR)/boot_bkg.o		\
+		$(EE_OBJS_DIR)/boot_font.o		\
+		$(EE_OBJS_DIR)/boot_dat.o		\
 
 
 EE_LIBS	=	-lc		\
@@ -90,11 +94,13 @@ EE_LIBS	=	-lc		\
 		-lps2ip		\
 		-lscew		\
 		-lexpat		\
+		-liconv		\
 
 
 # add lib directories
 EE_LDFLAGS +=	-L../lib/gsLib -L../lib/dmaKit -L../lib/libmad -L../lib/libsample -L../lib/libjpg \
-		-L../lib/libexpat -L../lib/libscew -L../lib/libpng -L../lib/libz
+		-L../lib/libexpat -L../lib/libscew -L../lib/libpng -L../lib/libz \
+		-L../lib/libiconv
 
 # add include directories
 EE_INCS += -I../lib/libexpat
@@ -166,10 +172,21 @@ $(EE_OBJS_DIR)/ps2ftpd.s:
 $(EE_OBJS_DIR)/sjpcm.s:
 	bin2s ../irx/sjpcm/sjpcm.irx $(EE_OBJS_DIR)/sjpcm.s sjpcm_irx
 
+$(EE_OBJS_DIR)/boot_bkg.s:
+	bin2s ../data/boot_bkg.png $(EE_OBJS_DIR)/boot_bkg.s boot_bkg
+
+$(EE_OBJS_DIR)/boot_font.s:
+	bin2s ../data/boot_font.png $(EE_OBJS_DIR)/boot_font.s boot_font
+
+$(EE_OBJS_DIR)/boot_dat.s:
+	bin2s ../data/boot_dat.dat $(EE_OBJS_DIR)/boot_dat.s boot_dat
+
 clean:
 	rm -f -r $(EE_OBJS_DIR)
 	rm -f $(EE_BIN_DIR)/$(EE_BIN)
+ifndef DEVELOPER
 	rm -f -r $(EE_OBJS_DIR) $(EE_BIN_DIR)
+endif
 
 include $(PS2SDK)/Defs.make
 include $(PS2SDK)/samples/Makefile.eeglobal

@@ -87,6 +87,8 @@ int RunLoaderELF( char *filename )
 	void			*pdata;
 	int				i;
 	char			*argv[1];
+	char			szMnt[MAX_PATH + 1];
+	const char		*pPartName;
 
 	// Load the ELF into RAM
 	if( _lw((u32)&eh->ident) != ELF_MAGIC )
@@ -117,7 +119,20 @@ int RunLoaderELF( char *filename )
 	FlushCache(2);
 
 	argv[0] = filename;
-	argv[1] = "MYPS2"; // just always pass the partition name
+
+	if( !strncmp( filename, "pfs", 3 ) ) {
+		i = strcspn( filename, ":" );
+
+		strncpy( szMnt, filename, i + 1);
+
+		if( !(pPartName = HDD_GetPartition(szMnt)) )
+			return 0;
+
+		argv[1] = (char*) pPartName;
+	}
+	else {
+		argv[1] = "";
+	}
 
 	ExecPS2( (void *)eh->entry, 0, 2, argv );
 

@@ -33,7 +33,7 @@ MA  02110-1301, USA.
 
 #include <ps2ip.h>
 
-#define USER_AGENT			"myPS2/1.0"
+#define USER_AGENT			"myPS2/1.1"
 
 #define SHOUTCAST_HOST		"www.shoutcast.com"
 #define SHOUTCAST_FILE		"/sbin/xmllister.phtml?limit=500&service=aol&no_compress=1"

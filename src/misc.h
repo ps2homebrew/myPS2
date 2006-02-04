@@ -36,7 +36,7 @@ MA  02110-1301, USA.
 #include <../lib/gsLib/gsLib.h>
 #include <libcdvd.h>
 
-#define MYPS2_VERSION "1.0"
+#define MYPS2_VERSION "1.1"
 
 //
 // main.c
@@ -103,15 +103,22 @@ typedef enum {
 
 void loadModules( const char *path );
 void CD_Init( void );
+void CD_Exit( void );
 
 void SetElfPath( const char *argv );
 const char *GetElfPath( void );
 
+void SetBootMode( const char *path );
+int GetBootMode( void );
+const char *BootMntPoint( void );
+
+int IOPModulePresent( const char *lpModuleName );
 void ResetIOP( void );
 
 // HDD Stuff
 
 #define PARTITION_NAME	"MYPS2"
+#define HDD_MAX_MOUNT	8
 
 enum
 {
@@ -130,6 +137,7 @@ void HDD_ShutDown( void );
 int HDD_MountList( void );
 int HDD_UnmountList( void );
 int HDD_NumMounted( void );
+const char *HDD_GetPartition( const char *lpMountPoint );
 
 void MC_Init( void );
 int MC_Available( int nPort );
@@ -158,6 +166,7 @@ void tnTimeFini( void );
 void Bootscreen_Clear( void );
 void Bootscreen_printf( const char *fmt, ... );
 void Bootscreen_Init( void );
+void Bootscreen_Shutdown( void );
 int Bootscreen_GetX( void );
 int Bootscreen_GetY( void );
 void Bootscreen_SetX( int x );

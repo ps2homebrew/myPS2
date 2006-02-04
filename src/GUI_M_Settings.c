@@ -93,6 +93,10 @@ unsigned int GUI_CB_Settings( GUIMenu_t *lpGUIMenu, unsigned int nGUIMsg,
 			pCtrl = GUI_ControlByID(ID_CACHE_SHOUTCAST);
 			GUI_Ctrl_ToggleButton_SetState( pCtrl,
 											SC_GetValueForKey_Int("radio_cache_list", NULL ));
+
+			// disable save button if running from CD
+			if( GetBootMode() == BOOT_CD )
+				GUI_CtrlSetEnable( ID_SAVE_SETTINGS, 0 );
 			break;
 
 		case GUI_MSG_CONTROL:

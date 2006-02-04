@@ -30,7 +30,7 @@ void GUI_Ctrl_List_Draw( const GUIControl_t *pCtrl )
 	unsigned int nItemHeight, nTextPosY, nTextPosX, nStrIndex;
 	const GUIMenuImage_t *pTexNoFocus, *pTexFocus, *pTexMarked,
 		*pTex, *pScrollTex;
-	const GUIMenuFont_t *pFont;
+	const GUIFont_t *pFont;
 	char szStr[ MAX_PATH + 1 ];
 	GUIListItem_t *pItem;
 	GUICtrl_List_t *pList = pCtrl->pCtrl;
@@ -51,7 +51,7 @@ void GUI_Ctrl_List_Draw( const GUIControl_t *pCtrl )
 	if( !pTexMarked )
 		return;
 
-	pFont = GUI_MenuGetFont( pCtrl->pParent, pList->nFontIdx );
+	pFont = GUI_FontGet( pList->nFontIdx );
 	if( !pFont )
 		return;
 
@@ -88,9 +88,8 @@ void GUI_Ctrl_List_Draw( const GUIControl_t *pCtrl )
 		nTextPosX	= pCtrl->nPosX + pList->nTextOffset;
 		nTextPosY	= nItemPosY + (nItemHeight - gsLib_font_height(pFont->gsFont)) / 2;
 
-		strncpy( szStr, pItem->pStr, MAX_PATH );
-		szStr[MAX_PATH] = 0;
-		nStrIndex		= strlen(szStr) - 1;
+		CharsetConvert_UTF8ToCharset( szStr, pItem->pStr, sizeof(szStr) );
+		nStrIndex	= strlen(szStr) - 1;
 
 		while( gsLib_font_width( pFont->gsFont, szStr ) > (pList->nWidth - pList->nTextOffset * 2) )
 		{
@@ -222,9 +221,9 @@ void GUI_Ctrl_List_SetCursor( GUIControl_t *pCtrl, unsigned int nPos )
 {
 	unsigned int nItemHeight, nNumDraw, nOld;
 	GUICtrl_List_t *pList = pCtrl->pCtrl;
-	const GUIMenuFont_t *pFont;
+	const GUIFont_t *pFont;
 
-	pFont = GUI_MenuGetFont( pCtrl->pParent, pList->nFontIdx );
+	pFont = GUI_FontGet( pList->nFontIdx );
 
 	nItemHeight = pList->nItemHeight ? pList->nItemHeight : gsLib_font_height(pFont->gsFont);
 	nNumDraw	= pList->nHeight / (nItemHeight + pList->nPadding);

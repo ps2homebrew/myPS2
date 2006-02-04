@@ -30,13 +30,17 @@ MA  02110-1301, USA.
 #include <../libjpg/libjpg.h>
 #endif
 
+#ifdef HAVE_LIBPNG
+#include <../libpng/libpng.h>
+#endif
+
 #include "gsCore.h"
 #include "gsTexture.h"
 #include "gsPrimitive.h"
 #include "gsFont.h"
 #include "gsMisc.h"
 
-#include <../dmaKit/dmaKit.h>
+#include "../dmaKit/dmaKit.h"
 
 extern GSGLOBAL gsGlobal;
 

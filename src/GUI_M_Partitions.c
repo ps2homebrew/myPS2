@@ -35,8 +35,10 @@ static void ListPartitions( void )
 	char			szPart[MAX_PATH + 1];
 	char			szMntList[MAX_PATH + 1];
 	char			*pToken;
-	const char		*pString;
+	const char		*pString, *pBootPart;
 	GUIControl_t	*pCtrl = GUI_ControlByID(ID_LIST);
+
+	pBootPart = SC_GetValueForKey_Str( "hdd_boot_part", NULL );
 
 	// get a list of partitions
 	hddFd = fileXioDopen("hdd0:");
@@ -49,8 +51,8 @@ static void ListPartitions( void )
 	while( nRet > 0 )
 	{
 		if( (dirEnt.stat.attr & ATTR_SUB_PARTITION) || (dirEnt.stat.mode == FS_TYPE_EMPTY) ||
-			(!strncmp(dirEnt.name, "PP.HDL.", 7))   || (!strncmp(dirEnt.name, "__", 2))	   ||
-			(!strcmp(dirEnt.name, "+MYPS2")) )
+			(!strncmp(dirEnt.name, "PP.HDL.", 7))   /*|| (!strncmp(dirEnt.name, "__", 2))*/||
+			(!strcmp(dirEnt.name, "+MYPS2")) || (pBootPart && !strcmp(dirEnt.name, pBootPart)) )
 		{
 			nRet = fileXioDread( hddFd, &dirEnt );
 			continue;

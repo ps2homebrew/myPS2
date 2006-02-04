@@ -21,72 +21,69 @@ MA  02110-1301, USA.
 
 #include "gsLib.h"
 
-GSFONT *gsLib_font_create( u8 type, u8 *data )
+GSFONT *gsLib_font_create( u8 type, u8 *png_file, u32 png_size, u8 *dat_file, u32 dat_size )
 {
-	unsigned short width, height;
-	GSFONT	*gsFont;
-	u8		*rgba;
-	u32		*charWidths;
-	int		i;
-	int		x0, y0, x1, y1;
+	GSFONT				*gsFont;
+	u8					*rgba, CharWidth, CharHeight;
+	int					a,b,c,d,i;
+	u32					StartX, StartY;
+	pngData				*pPng;
+	u32					nImageWidth, nImageHeight;
 
-	gsFont = calloc(1, sizeof(GSFONT));
+	if( !(pPng = pngOpenRAW( png_file, png_size )) )
+		return NULL;
 
-	gsFont->Type	= type;
+	if( pPng->bpp != 32 )
+		return NULL;
 
-	if( type == GSLIB_FTYPE_BFT )
+	if( !(rgba = malloc( pPng->width * pPng->height * (pPng->bpp >> 3) )) )
+		return NULL;
+
+	if( pngReadImage( pPng, rgba ) < 0 )
+		return NULL;
+
+	nImageWidth		= pPng->width;
+	nImageHeight	= pPng->height;
+
+	pngClose(pPng);
+
+	CharWidth	= nImageWidth  / 16;
+	CharHeight	= nImageHeight / 16;
+
+	gsFont				= calloc(1, sizeof(GSFONT) );	
+	gsFont->Type		= type;
+	gsFont->CharGrid	= CharWidth;
+
+	for( a = 0; a < 16; a++ )
 	{
-		if( *data++ != 'B' || *data++ != 'F' || *data++ != 'T' ||
-			*data++ != '0' )
-			return NULL;
-
-		width	= (data[1] << 8) + data[0];
-		height	= (width / 16) * 6;
-		data += 2;
-
-		if(width != 128 && width != 256 && width != 512)
-			return NULL;
-
-		rgba = memalign( 128, width * height * 4 );
-		for( i = 0; i < width * height; i++ )
+		for( b = 0; b < 16; b++ )
 		{
-			rgba[i*4 + 0] = 0xff;
-			rgba[i*4 + 1] = 0xff;
-			rgba[i*4 + 2] = 0xff;
-			rgba[i*4 + 3] = *data++;
-		}
+			c		= a * 16 + b;
+			StartX	= CharWidth  * b * 4;
+			StartY	= CharHeight * a * nImageWidth * 4;
 
-		gsFont->Texture = gsLib_texture_raw( width, height, GS_PSM_CT32, rgba );
-		if( !gsFont->Texture )
-			return NULL;
+			gsFont->Chars[c].Data = memalign( 128, CharWidth * CharHeight * 4 );
 
-		free(rgba);
-		charWidths = malloc( sizeof(u32) * 96 );
-		memcpy( charWidths, data, sizeof(u32) * 96 );
-		gsFont->TexCoords = calloc(1, sizeof(u32) * 4 * 128 );
-
-		x0 = x1 = y1 = 0;
-		y0 = -(width / 16);
-
-		for( i = 0; i < 96; i++ )
-		{
-			x0 %= width;
-			x1 = x0 + charWidths[i];
-			if( (i % 16) == 0 )
+			for( d = 0; d < CharHeight; d++ )
 			{
-				y0 += (width / 16);
-				y1 = y0 + (width / 16) - 1;
+				memcpy( &gsFont->Chars[c].Data[ d * CharWidth * 4 ],
+						&rgba[ StartY + d * nImageWidth * 4 + StartX],
+						CharWidth * 4 );
 			}
-
-			gsFont->TexCoords[ 32 * 4 + i * 4 + 0 ] = x0;
-			gsFont->TexCoords[ 32 * 4 + i * 4 + 1 ] = y0;
-			gsFont->TexCoords[ 32 * 4 + i * 4 + 2 ] = x1;
-			gsFont->TexCoords[ 32 * 4 + i * 4 + 3 ] = y1;
-
-			x0 += (width / 16);
 		}
+	}
 
-		free(charWidths);
+	free(rgba);
+
+	// Parse Widths from DAT
+	c = 0;
+
+	for( i = 0; i < 256; i++ )
+	{
+		gsFont->Chars[i].Width	= *dat_file;
+		gsFont->Chars[i].Height	= CharHeight;
+
+		dat_file += 2;
 	}
 
 	return gsFont;
@@ -94,17 +91,20 @@ GSFONT *gsLib_font_create( u8 type, u8 *data )
 
 int gsLib_font_destroy( GSFONT *gsFont )
 {
-	gsLib_texture_free(gsFont->Texture);
-	free(gsFont->TexCoords);
-	free(gsFont);
+	int i;
+
+	for( i = 0; i < 256; i++ )
+		free( gsFont->Chars[i].Data );
+
+	free( gsFont );
+
 	return 1;
 }
 
 void gsLib_font_print( GSFONT *gsFont, u32 x, u32 y, u64 color, const char *string )
 {
-	u32 *tc;
-	int l, i, x0, x1, y0, y1,w, h, cx, cy;
-	char c;
+	int l, i, h, cx, cy;
+	int c;
 
 	cx	= x;
 	cy	= y;
@@ -114,62 +114,75 @@ void gsLib_font_print( GSFONT *gsFont, u32 x, u32 y, u64 color, const char *stri
 	{
 		for( i = 0; i < l; i++ )
 		{
-			c = string[i];
+			c = (unsigned char) string[i];
+
 			if( c == '\n' )
 			{
-				h	=	gsFont->TexCoords[ '0' * 4 + 3 ] -
-						gsFont->TexCoords[ '0' * 4 + 1 ] + 1;
-
+				h	= gsFont->Chars[0].Height + 1;
 				cx	= x;
 				cy	= cy + h;
 			}
 			else
 			{
-				tc	= &gsFont->TexCoords[ c * 4 ];
-				x0	= *tc++;
-				y0	= *tc++;
-				x1	= *tc++;
-				y1	= *tc++;
-				w	= (x1 - x0 +1);
-				h	= (y1 - y0 +1);
-
-				gsLib_prim_sprite_texture(	gsFont->Texture, cx, cy, w, h, x0, y0,
-											x1 + 1, y1 + 1, color );
-
-				cx += w;
+				cx += gsLib_font_print_char( gsFont, cx, cy, color, c );
 			}
 		}
 	}
 }
 
-int gsLib_font_print_char( GSFONT *gsFont, u32 x, u32 y, u64 color, char c )
+int gsLib_font_print_char( GSFONT *gsFont, u32 x, u32 y, u64 color, u32 c )
 {
-	u32 *tc;
-	int x0, x1, y0, y1, w, h;
+	GSTEXTURE *gsTexture;
+	int i;
 
-	w = 0;
-	if( gsFont->Type == GSLIB_FTYPE_BFT )
+	int			size;
+	u32			vram;
+	static u32	last_vram;
+
+	i = (unsigned char) c;
+
+	//
+	size	= gsLib_texture_size( gsFont->CharGrid, gsFont->CharGrid, GS_PSM_CT32 );
+	vram	= gsLib_vram_alloc( size );
+
+	if( vram == last_vram )
 	{
-		tc	= &gsFont->TexCoords[ c * 4 ];
-		x0	= *tc++;
-		y0	= *tc++;
-		x1	= *tc++;
-		y1	= *tc++;
-		w	= (x1 - x0 +1);
-		h	= (y1 - y0 +1);
+		last_vram	= vram;
+		vram		= gsLib_vram_alloc( size );
 
-		gsLib_prim_sprite_texture(	gsFont->Texture, x, y, w, h, x0, y0,
-									x1 + 1, y1 + 1, color );
+		gsLib_vram_free(last_vram);
 	}
 
-	return w;
+	last_vram = vram;
+
+	gsTexture = malloc( sizeof(GSTEXTURE) );
+	
+	gsTexture->Vram		= vram;
+	gsTexture->Width	= gsFont->CharGrid;
+	gsTexture->Height	= gsFont->CharGrid;
+	gsTexture->PSM		= GS_PSM_CT32;
+
+	gsLib_texture_send( (void*) gsFont->Chars[i].Data, gsFont->CharGrid, gsFont->CharGrid,
+						vram, GS_PSM_CT32 );
+
+/*	gsTexture = gsLib_texture_raw(	gsFont->CharGrid, gsFont->CharGrid,
+									GS_PSM_CT32, gsFont->Chars[i].Data );
+*/
+	gsLib_prim_sprite_texture(	gsTexture, x, y,
+								gsFont->Chars[i].Width + 1, gsFont->Chars[i].Height + 1,
+								0, 0,
+								gsFont->Chars[i].Width + 1, gsFont->Chars[i].Height + 1,
+								color );
+
+	gsLib_texture_free( gsTexture );
+
+	return gsFont->Chars[i].Width + 1;
 }
 
 int gsLib_font_width( GSFONT *gsFont, const char *string )
 {
-	u32 *tc;
-	int l, i, x0, x1, y0, y1, w, ret;
-	char c;
+	int l, i, ret;
+	int c;
 
 	l	= strlen(string);
 	ret	= 0;
@@ -178,16 +191,9 @@ int gsLib_font_width( GSFONT *gsFont, const char *string )
 	{
 		for( i = 0; i < l; i++ )
 		{
-			c = string[i];
+			c = (unsigned char) string[i];
 
-			tc	= &gsFont->TexCoords[ c * 4 ];
-			x0	= *tc++;
-			y0	= *tc++;
-			x1	= *tc++;
-			y1	= *tc++;
-			w	= x1 - x0 + 1;
-
-			ret += w;
+			ret += gsFont->Chars[c].Width + 1;
 		}
 	}
 
@@ -196,13 +202,8 @@ int gsLib_font_width( GSFONT *gsFont, const char *string )
 
 int gsLib_font_height( GSFONT *gsFont )
 {
-	int h;
-
 	if( gsFont->Type == GSLIB_FTYPE_BFT )
-	{
-		h = gsFont->TexCoords[ '0' * 4 + 3 ] - gsFont->TexCoords[ '0' * 4 + 1 ] + 1;
-		return h;
-	}
+		return gsFont->CharGrid;
 
 	return 0;
 }

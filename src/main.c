@@ -39,6 +39,7 @@ MA  02110-1301, USA.
 #include <mass_rpc.h>
 #include <kernel.h>
 #include <ps2ip.h>
+#include <smod.h>
 
 #include <gamepad.h>
 #include <misc.h>
@@ -56,8 +57,12 @@ MA  02110-1301, USA.
 
 int main( int argc, char *argv[] )
 {
-	int nRet;
-	int bSafeMode = 0;
+	int		nRet;
+	int		bSafeMode		= 0;
+
+	char	szBootPart[MAX_PATH];
+	char	szBootPath[MAX_PATH];
+	char	szExecPath[MAX_PATH];
 
 	// initialize dmaKit
 	dmaKit_init( D_CTRL_RELE_ON, D_CTRL_MFD_OFF, D_CTRL_STS_UNSPEC,
@@ -65,10 +70,36 @@ int main( int argc, char *argv[] )
 
 	dmaKit_chan_init(DMA_CHANNEL_GIF);
 
+	SetElfPath( argv[0] );
+	SetBootMode( argv[0] );
+
 	// setup loading screen
 	Bootscreen_Init();
+	Bootscreen_printf("SetElfPath: %s\n", GetElfPath() );
 
-	SetElfPath( argv[0] );
+	// booting from HDD
+	if( GetBootMode() == BOOT_HDD )
+	{
+		if( !SC_LoadConfig(0) )
+		{
+			Bootscreen_printf("Failed loading CONFIG.DAT\n");
+			Bootscreen_printf("CONFIG.DAT must be present when booting from HDD!\n");
+			SleepThread();
+		}
+
+		if( !SC_GetValueForKey_Str( "hdd_boot_part", szBootPart ) )
+		{
+			Bootscreen_printf("Couldn't find hdd_boot_part entry in CONFIG.DAT\n");
+			SleepThread();
+		}
+
+		if( !SC_GetValueForKey_Str( "hdd_boot_path", szBootPath ) )
+		{
+			Bootscreen_printf("Couldn't find hdd_boot_path entry in CONFIG.DAT\n");
+			SleepThread();
+		}
+	}
+
 	loadModules( argv[0] );
 
 	tnTimeInit();
@@ -77,6 +108,30 @@ int main( int argc, char *argv[] )
 	HDD_Init();
 	USB_Init();
 
+	if( GetBootMode() == BOOT_HDD )
+	{
+		// if boot partition is +MYPS2 it has already been mounted in HDD_Init
+		if( (HDD_Available() == HDD_AVAIL) && (!strcmp(szBootPart, "hdd0:+MYPS2")) )
+		{
+			snprintf( szExecPath, sizeof(szExecPath), "pfs0:%s", szBootPath );
+			SetElfPath( szExecPath );
+		}
+		else
+		{
+			// mount boot partition to pfs1
+			nRet = fileXioMount( "pfs1:", szBootPart, FIO_MT_RDWR );
+			if( nRet < 0 ) {
+				Bootscreen_printf("Could not mount partition %s (errno %i)\n", szBootPart, nRet );
+				SleepThread();
+			}
+
+			snprintf( szExecPath, sizeof(szExecPath), "pfs1:%s", szBootPath );
+			SetElfPath( szExecPath );
+		}
+
+		Bootscreen_printf("SetElfPath: %s\n", GetElfPath() );
+	}
+	
 	// boot in safe mode?
 	if( GP_GetButtons() & (PAD_R1 | PAD_R2 | PAD_L1 | PAD_L2) )
 		bSafeMode = 1;
@@ -124,11 +179,12 @@ int main( int argc, char *argv[] )
 void loadModules( const char *path )
 {
 	int			ret, irx_ret;
-	const char	hddarg[]	= "-o" "\0" "4" "\0" "-n" "\0" "20";
-	const char	pfsarg[]	= "-m" "\0" "4" "\0" "-o" "\0" "10" "\0" "-n" "\0" "40";
-	int i, bootmode;
+	const char	hddarg[]	= "-o" "\0" "10" "\0" "-n" "\0" "20";
+	const char	pfsarg[]	= "-m" "\0" "10" "\0" "-o" "\0" "10" "\0" "-n" "\0" "40";
 
 	SifInitRpc(0);
+
+	CD_Exit();
 
 #ifndef _DEVELOPER
 	ResetIOP();
@@ -141,23 +197,6 @@ void loadModules( const char *path )
 
 	sbv_patch_enable_lmb();
 	sbv_patch_disable_prefix_check();
-
-	// figure out boot mode
-	i = strcspn( path, ":" );
-
-	if( !strncmp( path, "host", i ) ) {
-		bootmode = BOOT_HOST;
-	}
-	else if( !strncmp( path, "mc", i ) ) {
-		bootmode = BOOT_MC;
-	}
-	else if( !strncmp( path, "mass", i ) ) {
-		bootmode = BOOT_USB;
-	}
-	else if( !strncmp( path, "cdrom", i ) ) {
-		CD_Init();
-		bootmode = BOOT_CD;
-	}
 
 	Bootscreen_printf("Loading basic IRX modules...\n");
 
@@ -300,13 +339,14 @@ void loadModules( const char *path )
 // CD_Init - Loads the cdvd.irx module and initializes CDVD.
 //
 
+static int CDInit = 0;
+
 void CD_Init( void )
 {
-	static int init;
 	int ret, irx_ret;
 
 	// don't bother if already initialized
-	if( init )
+	if( CDInit )
 		return;
 
 	// load CDVD module (embedded in ELF)
@@ -320,10 +360,15 @@ void CD_Init( void )
 
 	CDVD_Init();
 
-	init = 1;
+	CDInit = 1;
 #ifdef _DEBUG
 	printf("CD_Init : CDVD initialized.\n");
 #endif
+}
+
+void CD_Exit( void )
+{
+	CDInit = 0;
 }
 
 static char strElfPath[256];
@@ -333,8 +378,21 @@ void SetElfPath( const char *argv )
 	char *ptr;
 
 	strncpy( strElfPath, argv, 255 );
-
 	strElfPath[255] = 0;
+
+	if( !(ptr = strchr( strElfPath, ':' )) )
+		return;
+
+	ptr++; *ptr = '/';
+	ptr++; *ptr = '\0';
+
+	ptr = strchr( argv, ':' );
+	ptr++;
+
+	if( *ptr == '/' )
+		ptr++;
+
+	strncat( strElfPath, ptr, sizeof(strElfPath) );
 
 	ptr = strrchr( strElfPath, '/' );
 	if( ptr == NULL ) {
@@ -342,8 +400,7 @@ void SetElfPath( const char *argv )
 		if( ptr == NULL ) {
 			ptr = strrchr( strElfPath, ':' );
 			if( ptr == NULL ) {
-				Bootscreen_printf("Invalid Path (%s)!\n", argv);
-				SleepThread();
+				printf("ERROR\n");
 			}
 		}
 	}
@@ -351,12 +408,75 @@ void SetElfPath( const char *argv )
 	ptr++;
 	*ptr = '\0';
 
-	Bootscreen_printf("SetElfPath: %s\n", strElfPath);
+	if( !strncmp( strElfPath, "cdrom0", 6 ) )
+	{
+		char strTemp[256];
+
+		ptr = strchr( strElfPath, ':' );
+
+		snprintf( strTemp, sizeof(strTemp), "cdfs%s", ptr );
+		strcpy( strElfPath, strTemp );
+
+	}
 }
 
 const char *GetElfPath( void )
 {
 	return strElfPath;
+}
+
+static int nBootMode;
+
+void SetBootMode( const char *path )
+{
+	int i;
+
+	// figure out boot mode
+	i = strcspn( path, ":" );
+
+	if( !strncmp( path, "host", i ) ) {
+		if( IOPModulePresent( "fakehost" ) )
+			nBootMode = BOOT_HDD;
+		else
+			nBootMode = BOOT_HOST;
+	}
+	else if( !strncmp( path, "mc", i ) ) {
+		nBootMode = BOOT_MC;
+	}
+	else if( !strncmp( path, "mass", i ) ) {
+		nBootMode = BOOT_USB;
+	}
+	else if( !strncmp( path, "cdrom0", i ) || !strncmp( path, "cdfs", i ) ) {
+		nBootMode = BOOT_CD;
+	}
+}
+
+int GetBootMode( void )
+{
+	return nBootMode;
+}
+
+const char *BootMntPoint( void )
+{
+	char szBootPart[MAX_PATH];
+
+	SC_GetValueForKey_Str( "hdd_boot_part", szBootPart );
+
+	if( !strcmp( szBootPart, "hdd0:+MYPS2" ) )
+		return "pfs0";
+
+	return "pfs1";
+}
+
+//
+// IOPModulePresent - Returns true if IOP module is loaded
+//
+
+int IOPModulePresent( const char *lpModuleName )
+{
+	smod_mod_info_t	mod_t;
+
+	return smod_get_mod_by_name( lpModuleName, &mod_t );
 }
 
 void ResetIOP( void )
@@ -387,9 +507,9 @@ void ResetIOP( void )
 // --------------------- HDD initialization and helper functions ---------------------
 //
 
-static int bHddAvail		= HDD_NOT_AVAIL;
-static int nHddNumMounted	= 0;
-
+static int	bHddAvail		= HDD_NOT_AVAIL;
+static int	nHddNumMounted	= 0;
+static char	lpPartNames[HDD_MAX_MOUNT][MAX_PATH + 1];
 
 //
 // HDD_Init - initializes HDD and attempts to mount partitions
@@ -592,23 +712,28 @@ int HDD_MountList( void )
 		nRet = fileXioGetStat( pToken, &info );
 		if( nRet != 0 ) {
 			nError++;
+			pToken = strtok( NULL, "," );
 			continue;
 		}
 
-		// try to mount it
-		snprintf( pfs, sizeof(pfs), "pfs%i:", nHddNumMounted + 1 );
+		// max number of user mounted partitions
+		if( nHddNumMounted >= HDD_MAX_MOUNT )
+			break;
 
-#ifdef _DEBUG
-	printf("HDD_MountList : Mounting Partition %s\n", pfs );
-#endif
+		// pfs0 and pfs1 are reserved
+		snprintf( pfs, sizeof(pfs), "pfs%i:", nHddNumMounted + 2 );
 
 		nRet = fileXioMount( pfs, pToken, FIO_MT_RDWR );
 
 		// could not mount partition
 		if( nRet < 0 ) {
 			nError++;
+			pToken = strtok( NULL, "," );
 			continue;
 		}
+
+		strncpy( lpPartNames[ nHddNumMounted ], pToken, MAX_PATH );
+		lpPartNames[ nHddNumMounted ][MAX_PATH] = 0;
 
 		nHddNumMounted++;
 
@@ -632,8 +757,8 @@ int HDD_UnmountList( void )
 		return 0;
 
 	for( i = 0; i < nHddNumMounted; i++ ) {
-		// pfs0 is always +MYPS2
-		snprintf( pfs, sizeof(pfs), "pfs%i:", i + 1 );
+		// pfs0 and pfs1 can not be unmounted
+		snprintf( pfs, sizeof(pfs), "pfs%i:", i + 2 );
 		fileXioUmount( pfs );
 	}
 
@@ -648,6 +773,36 @@ int HDD_UnmountList( void )
 int HDD_NumMounted( void )
 {
 	return nHddNumMounted;
+}
+
+//
+// HDD_GetPartName - Finds Partition from Mountpoint
+//
+
+const char *HDD_GetPartition( const char *lpMountPoint )
+{
+	int	i;
+	char szStr[MAX_PATH + 1], *pStr;
+
+	if(!strcmp( lpMountPoint, "pfs0:" ))
+		return "hdd0:+MYPS2";
+
+	if(!strcmp( lpMountPoint, "pfs1:" ))
+		return SC_GetValueForKey_Str( "hdd_boot_part", NULL );
+
+	strncpy( szStr, lpMountPoint, MAX_PATH );
+	szStr[MAX_PATH] = 0;
+
+	pStr = szStr;
+	while( !isdigit(*pStr) )
+		pStr++;
+
+	i = atoi(pStr) - 2;
+
+	if( i < 0 || i >= HDD_MAX_MOUNT )
+		return NULL;
+
+	return lpPartNames[i];
 }
 
 //
@@ -850,7 +1005,7 @@ int nFTPInit = 0;
 
 void NET_Init( const char *path )
 {
-	int ret, i, bootmode, irx_ret;
+	int ret, i, irx_ret;
 #ifndef _DEVELOPER
 	char params[256];
 #endif
@@ -862,60 +1017,44 @@ void NET_Init( const char *path )
 
 	Bootscreen_printf("Initializing Network modules\n");
 
-	// figure out boot mode
-	i = strcspn( path, ":" );
-
-	if( !strncmp( path, "host", i ) )
-		bootmode = BOOT_HOST;
-	else if( !strncmp( path, "mc", i ) )
-		bootmode = BOOT_MC;
-	else if( !strncmp( path, "hdd", i ) )
-		bootmode = BOOT_HDD;
-	else
-		bootmode = BOOT_CD;
-
-	// now this assumption was just wrong
 #ifndef _DEVELOPER
-//	if( bootmode != BOOT_HOST )
-	{
-		Bootscreen_printf("\tLoading PS2IP module: ");
+	Bootscreen_printf("\tLoading PS2IP module: ");
 
-		ret = SifExecModuleBuffer( &ps2ip_irx, size_ps2ip_irx, 0, NULL, &irx_ret );
-		if( ret < 0 ) {
-			Bootscreen_printf("^2FAILED\n");
-			return;
-		}
-		else {
-			Bootscreen_printf("^1OK\n");
-		}
+	ret = SifExecModuleBuffer( &ps2ip_irx, size_ps2ip_irx, 0, NULL, &irx_ret );
+	if( ret < 0 ) {
+		Bootscreen_printf("^2FAILED\n");
+		return;
+	}
+	else {
+		Bootscreen_printf("^1OK\n");
+	}
 
-		// prepare smap parameters
-		memset( params, 0, sizeof(params) );
-		i = 0;
+	// prepare smap parameters
+	memset( params, 0, sizeof(params) );
+	i = 0;
 
-		SC_GetValueForKey_Str( "net_ip", string );
-		strncpy( &params[i], string, 15 );
-		i += strlen(string) + 1;
+	SC_GetValueForKey_Str( "net_ip", string );
+	strncpy( &params[i], string, 15 );
+	i += strlen(string) + 1;
 
-		SC_GetValueForKey_Str( "net_netmask", string );
-		strncpy( &params[i], string, 15 );
-		i += strlen(string) + 1;
+	SC_GetValueForKey_Str( "net_netmask", string );
+	strncpy( &params[i], string, 15 );
+	i += strlen(string) + 1;
 
-		SC_GetValueForKey_Str( "net_gateway", string );
-		strncpy( &params[i], string, 15 );
-		i += strlen( string ) + 1;
+	SC_GetValueForKey_Str( "net_gateway", string );
+	strncpy( &params[i], string, 15 );
+	i += strlen( string ) + 1;
 
-		// load SMAP module
-		Bootscreen_printf("\tLoading SMAP module: ");
+	// load SMAP module
+	Bootscreen_printf("\tLoading SMAP module: ");
 
-		ret = SifExecModuleBuffer( &ps2smap_irx, size_ps2smap_irx, i, &params[0], &irx_ret );
-		if( ret < 0 ) {
-			Bootscreen_printf("^2FAILED\n");
-			return;
-		}
-		else {
-			Bootscreen_printf("^1OK\n");
-		}
+	ret = SifExecModuleBuffer( &ps2smap_irx, size_ps2smap_irx, i, &params[0], &irx_ret );
+	if( ret < 0 ) {
+		Bootscreen_printf("^2FAILED\n");
+		return;
+	}
+	else {
+		Bootscreen_printf("^1OK\n");
 	}
 #endif
 

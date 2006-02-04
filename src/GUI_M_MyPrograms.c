@@ -43,7 +43,7 @@ unsigned int GUI_CB_MyPrograms( GUIMenu_t *lpGUIMenu, unsigned int nGUIMsg,
 			switch( LOWORD(nCtrlParam) )
 			{
 				case ID_SELECT_ELF:
-					lpGUIMenu->iSelID = ID_SELECT_ELF;
+					lpGUIMenu->iSelID = ID_DIR_VIEW;
 					GUI_Render();
 					break;
 

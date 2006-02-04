@@ -33,6 +33,7 @@ MA  02110-1301, USA.
 #include <Floatlib.h>
 #include <Gamepad.h>
 #include <File.h>
+#include <Charset.h>
 
 typedef struct GUIMenu_s GUIMenu_t;
 
@@ -96,12 +97,6 @@ typedef struct
 	GSTEXTURE		*gsTexture;
 } GUIMenuImage_t;
 
-typedef struct
-{
-	unsigned int	nIndex;
-	GSFONT			*gsFont;
-} GUIMenuFont_t;
-
 struct GUIMenu_s
 {
 	GUIControl_t	*pControls;
@@ -113,9 +108,6 @@ struct GUIMenu_s
 
 	unsigned int	iNumImages;
 	GUIMenuImage_t	*pImages;
-
-	unsigned int	iNumFonts;
-	GUIMenuFont_t	*pFonts;
 
 	// for dialog menus
 	GUIMenu_t		*pParent;
@@ -145,13 +137,13 @@ typedef struct
 	int				nNumEntries;
 } GUILangTable_t;
 
+
 typedef struct
 {
 	char			*pFontName;
 	char			*pFileName;
-	unsigned char	*pFont;
-	unsigned int	nFontSize;
-} GUIFontStore_t;
+	GSFONT			*gsFont;
+} GUIFont_t;
 
 typedef struct
 {
@@ -170,7 +162,7 @@ typedef struct
 	GUIMenu_t		pGUIMenus[GUI_MENU_NUM];
 	GUIMenu_t		*pActiveMenu;
 	GUILangTable_t	LangTable;
-	GUIFontStore_t	*pGUIFonts;
+	GUIFont_t		*pGUIFonts;
 	int				nNumGUIFonts;
 	GUITime_t		Time;
 } GUI_t;
@@ -213,9 +205,8 @@ int GUI_MenuAddImage( GUIMenu_t *lpGUIMenu, unsigned int nImageIndex );
 
 int GUI_LoadFonts( const char *lpFileName, GUI_t *lpGUI );
 int GUI_FontAdd( GUI_t *lpGUI, const char *lpFontName, const char *lpFileName );
+const GUIFont_t *GUI_FontGet( unsigned int nIndex );
 int GUI_FontLookup( const GUI_t *lpGUI, const char *lpFontName );
-const GUIMenuFont_t *GUI_MenuGetFont( const GUIMenu_t *lpGUIMenu, unsigned int nIndex );
-int GUI_MenuAddFont( GUIMenu_t *lpGUIMenu, unsigned int nFontIndex );
 
 int GUI_LoadMenu( const char *lpXMLFile, GUI_t *lpGUI, GUIMenu_t *lpGUIMenu, float fScaleX, float fScaleY );
 int GUI_Load_Label( const scew_element *lpElement, GUI_t *lpGUI, GUIMenu_t *lpGUIMenu, GUIControl_t *lpCtrl, float fScaleX, float fScaleY );

@@ -28,7 +28,7 @@ void GUI_Ctrl_Label_Draw( const GUIControl_t *pCtrl )
 	char				szDisplayStr[MAX_PATH + 1];
 	int					nStrIndex;
 	unsigned int		nPosX;
-	const GUIMenuFont_t	*pFontHandle;
+	const GUIFont_t		*pFont;
 	GUICtrl_Label_t		*pLabel = pCtrl->pCtrl;
 
 	if( !pLabel->lpStr )
@@ -38,10 +38,9 @@ void GUI_Ctrl_Label_Draw( const GUIControl_t *pCtrl )
 		return;
 
 	pLangStr = pLabel->lpStr;
+	CharsetConvert_UTF8ToCharset( szDisplayStr, pLangStr, sizeof(szDisplayStr) );
 
-	strncpy( szDisplayStr, pLangStr, MAX_PATH );
-
-	if( !(pFontHandle = GUI_MenuGetFont( pCtrl->pParent, pLabel->nFontIdx )) )
+	if( !(pFont = GUI_FontGet( pLabel->nFontIdx )) )
 		return;
 
 	if( pLabel->nShowCursor )
@@ -57,7 +56,7 @@ void GUI_Ctrl_Label_Draw( const GUIControl_t *pCtrl )
 
 	if( pLabel->nWidth > 0 )
 	{
-		while( gsLib_font_width( pFontHandle->gsFont, szDisplayStr ) > pLabel->nWidth )
+		while( gsLib_font_width( pFont->gsFont, szDisplayStr ) > pLabel->nWidth )
 		{
 			szDisplayStr[ nStrIndex ] = 0;
 
@@ -75,14 +74,14 @@ void GUI_Ctrl_Label_Draw( const GUIControl_t *pCtrl )
 
 	if( pLabel->nAlign & GUI_LABEL_RIGHT )
 	{
-		nPosX += pLabel->nWidth - gsLib_font_width( pFontHandle->gsFont, szDisplayStr );
+		nPosX += pLabel->nWidth - gsLib_font_width( pFont->gsFont, szDisplayStr );
 	}
 	else if( pLabel->nAlign & GUI_LABEL_CENTER )
 	{
-		nPosX += (pLabel->nWidth - gsLib_font_width( pFontHandle->gsFont, szDisplayStr )) / 2;
+		nPosX += (pLabel->nWidth - gsLib_font_width( pFont->gsFont, szDisplayStr )) / 2;
 	}
 
-	gsLib_font_print( pFontHandle->gsFont, nPosX, pCtrl->nPosY, pLabel->nTextColor, szDisplayStr );
+	gsLib_font_print( pFont->gsFont, nPosX, pCtrl->nPosY, pLabel->nTextColor, szDisplayStr );
 }
 
 void GUI_Ctrl_Label_SetText( GUIControl_t *pCtrl, const char *lpText )

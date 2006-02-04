@@ -22,6 +22,7 @@ MA  02110-1301, USA.
 #include <tamtypes.h>
 #include <file.h>
 #include <sysconf.h>
+#include <charset.h>
 
 const pair_t SC_DEFAULTS[] =
 {
@@ -51,7 +52,13 @@ const pair_t SC_DEFAULTS[] =
 	{	"part_mount_list",		"",									NULL,	NULL	},
 
 	{	"lang_file",			"english.xml",						NULL,	NULL	},
-	{	"skin_name",			"default",							NULL,	NULL	}
+	{	"lang_charset",			DEFAULT_CHARSET,					NULL,	NULL	},
+
+	{	"skin_name",			"default",							NULL,	NULL	},
+
+	{	"hdd_boot_part",		"",									NULL,	NULL	},
+	{	"hdd_boot_path",		"",									NULL,	NULL	},
+
 };
 
 pair_t	*listHead = NULL;

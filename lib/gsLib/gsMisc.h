@@ -21,4 +21,19 @@ MA  02110-1301, USA.
 
 #include "gsLib.h"
 
+typedef struct
+{
+	u8		IdentLen;
+	u8		ColormapType;
+	u8		ImageType;
+	u8		ColormapSpec[5];
+	u16		OriginX;
+	u16		OriginY;
+	u16		Width;
+	u16		Height;
+	u8		BitsPerPixel;
+	u8		ImageDescriptor;
+
+} GSLIB_TGAHEADER __attribute__((packed));
+
 int gsLib_screenshot( const char *path );

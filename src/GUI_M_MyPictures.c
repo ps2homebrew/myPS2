@@ -188,6 +188,7 @@ unsigned int GUI_CB_MyPictures( GUIMenu_t *lpGUIMenu, unsigned int nGUIMsg,
 void SetBrowseDir( const char *pDirPath )
 {
 	int nCount, i;
+	const char *pMnt;
 
 	// stupid hack to support other partitions
 	if( !strcmp( "hdd", pDirPath ) )
@@ -208,11 +209,27 @@ void SetBrowseDir( const char *pDirPath )
 			fileInfo[0].size	= 0;
 
 			nNumFiles++;
+
+			if( GetBootMode() == BOOT_HDD )
+			{
+				if( (pMnt = BootMntPoint()) )
+				{
+					if( strcmp( pMnt, "pfs0" ) )
+					{
+						strcpy( fileInfo[1].name, "pfs1:" );
+
+						fileInfo[1].flags	= FLAG_DIRECTORY;
+						fileInfo[1].size	= 0;
+
+						nNumFiles++;
+					}
+				}
+			}
 		}
 
 		for( i = 0; i < HDD_NumMounted(); i++ )
 		{
-			snprintf( pfs, sizeof(pfs), "pfs%i:", i + 1 );
+			snprintf( pfs, sizeof(pfs), "pfs%i:", i + 2 );
 
 			strcpy( fileInfo[ nNumFiles ].name, pfs );
 

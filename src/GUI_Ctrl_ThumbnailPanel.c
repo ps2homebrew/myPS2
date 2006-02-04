@@ -31,7 +31,7 @@ void GUI_Ctrl_ThumbnailPanel_Draw( const GUIControl_t *pCtrl )
 	unsigned int nThumbPosX, nThumbPosY, nThumbWidth, nThumbHeight;
 	float f;
 	const GUIMenuImage_t *pItemTex, *pItemTexFocus, *pTex, *pScrollTex;
-	const GUIMenuFont_t *pFont;
+	const GUIFont_t *pFont;
 	unsigned int bHasFocus, bItemFocus, nItemIdx;
 	u64	uTextColor;
 	GUICtrl_ThumbnailPanel_t *pPanel = pCtrl->pCtrl;
@@ -51,7 +51,7 @@ void GUI_Ctrl_ThumbnailPanel_Draw( const GUIControl_t *pCtrl )
 	if( !pItemTexFocus )
 		return;
 
-	pFont = GUI_MenuGetFont( pCtrl->pParent, pPanel->nFontIdx );
+	pFont = GUI_FontGet( pPanel->nFontIdx );
 	if( !pFont )
 		return;
 
@@ -136,10 +136,8 @@ void GUI_Ctrl_ThumbnailPanel_Draw( const GUIControl_t *pCtrl )
 			// and center aligned horizontally
 			if( pThumbItem->pStr )
 			{
-				strncpy( szStr, pThumbItem->pStr, MAX_PATH );
-				
-				szStr[MAX_PATH] = 0;
-				nStrIndex		= strlen(szStr) - 1;
+				CharsetConvert_UTF8ToCharset( szStr, pThumbItem->pStr, sizeof(szStr) );
+				nStrIndex = strlen(szStr) - 1;
 
 				while( gsLib_font_width( pFont->gsFont, szStr ) > pPanel->nItemWidth )
 				{
