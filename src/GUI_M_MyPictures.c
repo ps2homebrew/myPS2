@@ -445,7 +445,8 @@ int CreateThumbnail( const fileInfo_t *pFile, const char *pDir, GSTEXTURE **pTex
 	TbnCacheSave( pFile, pDir, nWidth, nHeight, pResData );
 
 	if( pTexture )
-		*pTexture = gsLib_texture_raw( nWidth, nHeight, GS_PSM_CT24, pResData );
+		*pTexture = gsLib_texture_raw( nWidth, nHeight, GS_PSM_CT24, pResData, GS_CLUT_NONE,
+									   NULL );
 
 	jpgClose(pJpg);
 	free(pRaw);
@@ -536,8 +537,8 @@ int TbnCacheLoad( const fileInfo_t *pFile, const char *pDir, GSTEXTURE **pTextur
 	FileClose( fHandle );
 
 	if( pTexture )
-		*pTexture = gsLib_texture_raw(	tbnHeader.width, tbnHeader.height, GS_PSM_CT24,
-										pImgData );
+		*pTexture = gsLib_texture_raw( tbnHeader.width, tbnHeader.height, GS_PSM_CT24,
+									   pImgData, GS_CLUT_NONE, NULL );
 
 	free(pImgData);
 

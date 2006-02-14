@@ -28,7 +28,7 @@ void GUI_Ctrl_Label_Draw( const GUIControl_t *pCtrl )
 	char				szDisplayStr[MAX_PATH + 1];
 	int					nStrIndex;
 	unsigned int		nPosX;
-	const GUIFont_t		*pFont;
+	const GUIMenuFont_t	*pFont;
 	GUICtrl_Label_t		*pLabel = pCtrl->pCtrl;
 
 	if( !pLabel->lpStr )
@@ -40,7 +40,7 @@ void GUI_Ctrl_Label_Draw( const GUIControl_t *pCtrl )
 	pLangStr = pLabel->lpStr;
 	CharsetConvert_UTF8ToCharset( szDisplayStr, pLangStr, sizeof(szDisplayStr) );
 
-	if( !(pFont = GUI_FontGet( pLabel->nFontIdx )) )
+	if( !(pFont = GUI_MenuGetFont( pCtrl->pParent, pLabel->nFontIdx )) )
 		return;
 
 	if( pLabel->nShowCursor )

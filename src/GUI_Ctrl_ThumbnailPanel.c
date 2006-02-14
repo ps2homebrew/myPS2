@@ -31,7 +31,7 @@ void GUI_Ctrl_ThumbnailPanel_Draw( const GUIControl_t *pCtrl )
 	unsigned int nThumbPosX, nThumbPosY, nThumbWidth, nThumbHeight;
 	float f;
 	const GUIMenuImage_t *pItemTex, *pItemTexFocus, *pTex, *pScrollTex;
-	const GUIFont_t *pFont;
+	const GUIMenuFont_t *pFont;
 	unsigned int bHasFocus, bItemFocus, nItemIdx;
 	u64	uTextColor;
 	GUICtrl_ThumbnailPanel_t *pPanel = pCtrl->pCtrl;
@@ -51,7 +51,7 @@ void GUI_Ctrl_ThumbnailPanel_Draw( const GUIControl_t *pCtrl )
 	if( !pItemTexFocus )
 		return;
 
-	pFont = GUI_FontGet( pPanel->nFontIdx );
+	pFont = GUI_MenuGetFont( pCtrl->pParent, pPanel->nFontIdx );
 	if( !pFont )
 		return;
 

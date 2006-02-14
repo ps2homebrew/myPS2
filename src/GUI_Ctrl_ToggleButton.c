@@ -26,7 +26,7 @@ MA  02110-1301, USA.
 void GUI_Ctrl_ToggleButton_Draw( const GUIControl_t *pCtrl )
 {
 	const GUIMenuImage_t	*pImgHandle;
-	const GUIFont_t			*pFont;
+	const GUIMenuFont_t		*pFont;
 	unsigned int			nIdx;
 	GUICtrl_ToggleButton_t	*pButton = pCtrl->pCtrl;
 	u64						uTexColor;
@@ -106,7 +106,7 @@ void GUI_Ctrl_ToggleButton_Draw( const GUIControl_t *pCtrl )
 		if( pButton->nFontIdx == -1 )
 			return;
 
-		if( !(pFont = GUI_FontGet( pButton->nFontIdx )) )
+		if( !(pFont = GUI_MenuGetFont( pCtrl->pParent, pButton->nFontIdx )) )
 			return;
 
 		pLangStr = pButton->lpStr;

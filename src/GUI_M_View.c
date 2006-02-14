@@ -128,7 +128,7 @@ GSTEXTURE *LoadImage( const char *lpImageName )
 		return NULL;
 	}
 
-	gsTexture = gsLib_texture_raw( nWidth, nHeight, GS_PSM_CT24, pResData );
+	gsTexture = gsLib_texture_raw( nWidth, nHeight, GS_PSM_CT24, pResData, GS_CLUT_NONE, NULL );
 
 	jpgClose(pJpg);
 	free(pBuf);

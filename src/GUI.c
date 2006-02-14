@@ -663,15 +663,18 @@ int GUI_FreeSkin( void )
 	// free GUI Font Storage Table
 	for( i = 0; i < lpGUI->nNumGUIFonts; i++ )
 	{
-		gsLib_font_destroy( lpGUI->pGUIFonts[i].gsFont );
-
 		free( lpGUI->pGUIFonts[i].pFontName );
-		free( lpGUI->pGUIFonts[i].pFileName );
+		free( lpGUI->pGUIFonts[i].pPNGFile );
+		free( lpGUI->pGUIFonts[i].pDATFile );
 	}
 
 	// free GS images
 	for( i = 0; i < lpGUI->pActiveMenu->iNumImages; i++ )
 		gsLib_texture_free( lpGUI->pActiveMenu->pImages[i].gsTexture );
+
+	// free GS fonts
+	for( i = 0; i < lpGUI->pActiveMenu->iNumFonts; i++ )
+		gsLib_font_destroy( lpGUI->pActiveMenu->pFonts[i].gsFont );
 
 	lpGUI->nNumGUIImages	= 0;
 	lpGUI->nNumGUIFonts		= 0;
@@ -1006,12 +1009,11 @@ int GUI_FontAdd( GUI_t *lpGUI, const char *lpFontName, const char *lpFileName )
 	char			szSkinName[MAX_PATH + 1];
 	char			szFileName[MAX_PATH + 1];
 	FHANDLE			fHandle;
-	GUIFont_t		*pFonts;
+	GUIFontStore_t	*pFonts;
 
 	char			szDAT[MAX_PATH + 1];
 	unsigned char	*pPNGFile, *pDATFile;
 	u32				nPNGSize, nDATSize;
-	GSFONT			*gsFont;
 
 	if( !SC_GetValueForKey_Str( "skin_name", szSkinName ) )
 		return -1;
@@ -1076,23 +1078,16 @@ int GUI_FontAdd( GUI_t *lpGUI, const char *lpFontName, const char *lpFileName )
 	FileRead( fHandle, pDATFile, nDATSize );
 	FileClose(fHandle);
 
-	// try to create font object
-	if( !(gsFont = gsLib_font_create( GSLIB_FTYPE_BFT, pPNGFile, nPNGSize,
-									  pDATFile, nDATSize )) )
-		return -1;
-
-	free( pPNGFile );
-	free( pDATFile );
 
 	// add font to list
-	pFonts	= malloc( sizeof(GUIFont_t) * (lpGUI->nNumGUIFonts + 1) );
+	pFonts	= malloc( sizeof(GUIFontStore_t) * (lpGUI->nNumGUIFonts + 1) );
 
 	if( !pFonts )
 		return -1;
 
 	if( lpGUI->pGUIFonts )
 	{
-		memcpy( pFonts, lpGUI->pGUIFonts, lpGUI->nNumGUIFonts * sizeof(GUIFont_t) );
+		memcpy( pFonts, lpGUI->pGUIFonts, lpGUI->nNumGUIFonts * sizeof(GUIFontStore_t) );
 		free(lpGUI->pGUIFonts);
 	}
 
@@ -1100,29 +1095,19 @@ int GUI_FontAdd( GUI_t *lpGUI, const char *lpFontName, const char *lpFileName )
 
 	pFonts = &lpGUI->pGUIFonts[ lpGUI->nNumGUIFonts ];
 
-	pFonts->gsFont		= gsFont;
+	pFonts->nDATSize	= nDATSize;
+	pFonts->pDATFile	= pDATFile;
+	pFonts->nPNGSize	= nPNGSize;
+	pFonts->pPNGFile	= pPNGFile;
 
 	if( (pFonts->pFontName = malloc( strlen(lpFontName) + 1 )) == NULL )
 		return -1;
 
 	strcpy( pFonts->pFontName, lpFontName );
 
-	if( (pFonts->pFileName = malloc( strlen(lpFileName) + 1 )) == NULL )
-		return -1;
-
-	strcpy( pFonts->pFileName, lpFileName );
-
 	lpGUI->nNumGUIFonts++;
 
 	return (lpGUI->nNumGUIFonts - 1);
-}
-
-const GUIFont_t *GUI_FontGet( unsigned int nIndex )
-{
-	if( nIndex >= GUI.nNumGUIFonts )
-		return NULL;
-
-	return &GUI.pGUIFonts[ nIndex ];
 }
 
 int GUI_FontLookup( const GUI_t *lpGUI, const char *lpFontName )
@@ -1138,6 +1123,43 @@ int GUI_FontLookup( const GUI_t *lpGUI, const char *lpFontName )
 	return -1;
 }
 
+const GUIMenuFont_t *GUI_MenuGetFont( const GUIMenu_t *lpGUIMenu, unsigned int nIndex )
+{
+	unsigned int i;
+
+	for( i = 0; i < lpGUIMenu->iNumFonts; i++ )
+	{
+		if( lpGUIMenu->pFonts[i].nIndex == nIndex )
+			return &lpGUIMenu->pFonts[i];
+	}
+
+	return NULL;
+}
+
+int GUI_MenuAddFont( GUIMenu_t *lpGUIMenu, unsigned int nFontIndex )
+{
+	GUIMenuFont_t *pFonts;
+
+	pFonts = malloc( sizeof(GUIMenuFont_t) * (lpGUIMenu->iNumFonts + 1) );
+	if( !pFonts )
+		return -1;
+
+	if( lpGUIMenu->pFonts )
+	{
+		memcpy( pFonts, lpGUIMenu->pFonts, lpGUIMenu->iNumFonts * sizeof(GUIMenuFont_t) );
+		free( lpGUIMenu->pFonts );
+	}
+
+	lpGUIMenu->pFonts = pFonts;
+	pFonts = &lpGUIMenu->pFonts[ lpGUIMenu->iNumFonts ];
+
+	pFonts->nIndex		= nFontIndex;
+	pFonts->gsFont		= NULL;
+
+	lpGUIMenu->iNumFonts++;
+	return 1;
+}
+
 void GUI_OpenMenu( unsigned int nMenuID )
 {
 	unsigned int	i;
@@ -1151,6 +1173,9 @@ void GUI_OpenMenu( unsigned int nMenuID )
 
 		for( i = 0; i < GUI.pActiveMenu->iNumImages; i++ )
 			gsLib_texture_free( GUI.pActiveMenu->pImages[i].gsTexture );
+
+		for( i = 0; i < GUI.pActiveMenu->iNumFonts; i++ )
+			gsLib_font_destroy( GUI.pActiveMenu->pFonts[i].gsFont );
 	}
 
 	// upload needed textures from EE memory to GS video ram
@@ -1175,8 +1200,9 @@ void GUI_OpenMenu( unsigned int nMenuID )
 			if( jpgReadImage( pJpg, pRGB ) == - 1 )
 				continue;
 
-			pMenu->pImages[i].gsTexture = gsLib_texture_raw(	pJpg->width, pJpg->height,
-																GS_PSM_CT24, pRGB );
+			pMenu->pImages[i].gsTexture = gsLib_texture_raw( pJpg->width, pJpg->height,
+															 GS_PSM_CT24, pRGB, GS_CLUT_NONE,
+															 NULL );
 
 			jpgClose(pJpg);
 			free( pRGB );
@@ -1202,12 +1228,23 @@ void GUI_OpenMenu( unsigned int nMenuID )
 
 			nPSM = pPng->bpp == 32 ? GS_PSM_CT32 : GS_PSM_CT24;
 
-			pMenu->pImages[i].gsTexture = gsLib_texture_raw(	pPng->width, pPng->height,
-																nPSM, pRGB );
+			pMenu->pImages[i].gsTexture = gsLib_texture_raw( pPng->width, pPng->height,
+															 nPSM, pRGB, GS_CLUT_NONE,
+															 NULL );
 
 			pngClose(pPng);
 			free( pRGB );
 		}
+	}
+
+	// create fonts and upload them from EE to GS
+	for( i = 0; i < pMenu->iNumFonts; i++ )
+	{
+		pMenu->pFonts[i].gsFont = gsLib_font_create(
+			GUI.pGUIFonts[ pMenu->pFonts[i].nIndex ].pPNGFile,
+			GUI.pGUIFonts[ pMenu->pFonts[i].nIndex ].nPNGSize,
+			GUI.pGUIFonts[ pMenu->pFonts[i].nIndex ].pDATFile,
+			GUI.pGUIFonts[ pMenu->pFonts[i].nIndex ].nDATSize );
 	}
 
 	GUI.pActiveMenu = pMenu;
@@ -1239,6 +1276,9 @@ void GUI_CloseDialog( GUIMenu_t *pDialog, unsigned int nExitCode, unsigned int n
 
 	for( i = 0; i < pDialog->iNumImages; i++ )
 		gsLib_texture_free( pDialog->pImages[i].gsTexture );
+
+	for( i = 0; i < pDialog->iNumFonts; i++ )
+		gsLib_font_destroy( pDialog->pFonts[i].gsFont );
 
 	GUI.pActiveMenu		= pDialog->pParent;
 

@@ -34,8 +34,8 @@ MA  02110-1301, USA.
 #include <../libpng/libpng.h>
 #endif
 
-#include "gsCore.h"
 #include "gsTexture.h"
+#include "gsCore.h"
 #include "gsPrimitive.h"
 #include "gsFont.h"
 #include "gsMisc.h"

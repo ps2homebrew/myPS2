@@ -44,6 +44,12 @@ u32 gsLib_texture_size( int width, int height, int psm )
 		case GS_PSM_CT24:
 			return ( width * height * 4 );
 
+		case GS_PSM_T8:
+			return ( width * height );
+
+		case GS_PSM_T4:
+			return ( width * height / 2 );
+
 		default:
 			return -1;
 	}
@@ -130,7 +136,8 @@ void gsLib_texture_send( u32 *mem, int width, int height, u32 tbp, u32 psm )
 	dmaKit_wait( DMA_CHANNEL_GIF, 0 );
 }
 
-GSTEXTURE *gsLib_texture_raw( u32 width, u32 height, u32 psm, void *ee_mem )
+GSTEXTURE *gsLib_texture_raw( u32 width, u32 height, u32 psm, void *ee_mem, u8 type,
+							  GSTEXTURE *clut )
 {
 	GSTEXTURE *texture;
 	int size;
@@ -153,6 +160,8 @@ GSTEXTURE *gsLib_texture_raw( u32 width, u32 height, u32 psm, void *ee_mem )
 	texture->Height = height;
 	texture->Width	= width;
 	texture->PSM	= psm;
+	texture->Type	= type;
+	texture->Clut	= clut;
 
 	return texture;
 }
@@ -186,25 +195,29 @@ void gsLib_prim_sprite_texture( const GSTEXTURE *Texture, int x, int y, int w, i
 	if( Texture->Width / 64 > 0 )
 	{
 		if( (Texture->Width % 64) )
-		{
 			nTexBufWidth = 1 + (Texture->Width / 64);
-		}
 		else
-		{
 			nTexBufWidth = Texture->Width / 64;
-		}
+	}
+	else
+	{
+		nTexBufWidth = 1;
+	}
 
+	if( Texture->Type == GS_CLUT_TEXTURE )
+	{
+		*p_data++ = GS_SETREG_TEX0( Texture->Vram / 256, nTexBufWidth, Texture->PSM,
+									log(Texture->Width), log(Texture->Height),
+									1, 0, Texture->Clut->Vram / 256, Texture->Clut->PSM,
+									0, 0, 1 );
+	}
+	else
+	{
 		*p_data++ = GS_SETREG_TEX0( Texture->Vram / 256, nTexBufWidth, Texture->PSM,
 									log(Texture->Width), log(Texture->Height),
 									1, 0, 0, 0, 0, 0, 1 );
 	}
-	else
-	{
-		*p_data++ = GS_SETREG_TEX0(	Texture->Vram / 256, 1, Texture->PSM,
-									log(Texture->Width), log(Texture->Height),
-									1, 0, 0, 0, 0, 0, 1 );
-	}
-
+	
 	*p_data++ = GS_TEX0_1;
  
 	*p_data++ = GS_SETREG_PRIM( GS_PRIM_PRIM_SPRITE, 0, 1, 0, 1, 0, 1, 0, 0 );

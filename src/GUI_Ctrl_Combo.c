@@ -25,7 +25,7 @@ MA  02110-1301, USA.
 void GUI_Ctrl_Combo_Draw( const GUIControl_t *pCtrl )
 {
 	const GUIMenuImage_t	*pImgHandle;
-	const GUIFont_t			*pFont;
+	const GUIMenuFont_t		*pFont;
 	unsigned int			nIdx;
 	GUICtrl_Combo_t			*pButton = pCtrl->pCtrl;
 	GUIComboItem_t			*pItem;
@@ -98,7 +98,7 @@ void GUI_Ctrl_Combo_Draw( const GUIControl_t *pCtrl )
 		if( pButton->nFontIdx == -1 )
 			return;
 
-		if( !(pFont = GUI_FontGet( pButton->nFontIdx )) )
+		if( !(pFont = GUI_MenuGetFont( pCtrl->pParent, pButton->nFontIdx )) )
 			return;
 
 		if( !pItem->pStr )

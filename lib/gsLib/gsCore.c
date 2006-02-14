@@ -44,6 +44,7 @@ void gsLib_init( u8 mode, u32 flags )
 	gsGlobal.gs_mem_head		= NULL;
 	gsGlobal.OffsetX			= 0;
 	gsGlobal.OffsetY			= 0;
+	gsGlobal.FontClut			= NULL;
 
 	GS_SET_CSR( 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0 );
 	SetGsCrt( 1, mode, 0 );
@@ -113,6 +114,9 @@ void gsLib_init( u8 mode, u32 flags )
 	*p_data++ = GS_TEXA;
 
 	dmaKit_send_spr( DMA_CHANNEL_GIF, 0, p_store, size );
+
+	// init font clut
+//	gsLib_font_init();
 }
 
 u32 gsLib_vram_alloc( u32 size )

@@ -229,8 +229,7 @@ void Bootscreen_Init( void )
 	}
 
 	if( pPNGFile && pDATFile )
-		gsFont = gsLib_font_create( GSLIB_FTYPE_BFT, pPNGFile, nPNGSize,
-									pDATFile, nDATSize );
+		gsFont = gsLib_font_create( pPNGFile, nPNGSize, pDATFile, nDATSize );
 
 	if( pPNGFile )
 		free(pPNGFile);
@@ -240,8 +239,7 @@ void Bootscreen_Init( void )
 
 	// if failed to load font file use font compiled into elf
 	if( !gsFont ) {
-		if( !(gsFont = gsLib_font_create( GSLIB_FTYPE_BFT, boot_font, size_boot_font,
-										  boot_dat, size_boot_dat )) )
+		if( !(gsFont = gsLib_font_create( boot_font, size_boot_font, boot_dat, size_boot_dat )) )
 		{
 			printf("Bootscreen_Init: Couldn't create font\n");
 			SleepThread();
@@ -271,7 +269,8 @@ void Bootscreen_Init( void )
 			if( pngReadImage( pPng, pRGB ) != -1 ) {
 				nPSM = pPng->bpp == 32 ? GS_PSM_CT32 : GS_PSM_CT24;
 
-				gsTexBkg = gsLib_texture_raw( pPng->width, pPng->height, nPSM, pRGB );
+				gsTexBkg = gsLib_texture_raw( pPng->width, pPng->height, nPSM, pRGB, GS_CLUT_NONE,
+											  NULL );
 			}
 
 			pngClose(pPng);
@@ -287,7 +286,8 @@ void Bootscreen_Init( void )
 			if( pngReadImage( pPng, pRGB ) != -1 ) {
 				nPSM = pPng->bpp == 32 ? GS_PSM_CT32 : GS_PSM_CT24;
 
-				gsTexBkg = gsLib_texture_raw( pPng->width, pPng->height, nPSM, pRGB );
+				gsTexBkg = gsLib_texture_raw( pPng->width, pPng->height, nPSM, pRGB, GS_CLUT_NONE,
+											  NULL );
 			}
 
 			pngClose(pPng);

@@ -21,27 +21,15 @@ MA  02110-1301, USA.
 
 #include "gsLib.h"
 
-#define GSLIB_FTYPE_BFT		0x00
-#define GSLIB_FTYPE_TTF		0x01
-
 typedef struct
 {
-	u8		*Data;
-	u32		Width;
-	u32		Height;
-
-} GSFONT_CHAR;
-
-
-typedef struct
-{
-	u8				Type;
-	GSFONT_CHAR		Chars[ 16 * 16 ];
-	u32				CharGrid;
+	GSTEXTURE *Texture;
+	u32	*TexCoords;
 
 } GSFONT;
 
-GSFONT *gsLib_font_create( u8 type, u8 *png_file, u32 png_size, u8 *dat_file, u32 dat_size );
+void	gsLib_font_init( void );
+GSFONT *gsLib_font_create( u8 *png_file, u32 png_size, u8 *dat_file, u32 dat_size );
 int		gsLib_font_destroy( GSFONT *gsFont );
 void	gsLib_font_print( GSFONT *gsFont, u32 x, u32 y, u64 color, const char *string );
 int		gsLib_font_width( GSFONT *gsFont, const char *string );

@@ -1,8 +1,4 @@
-# myPS2 Makefile
-#
-# Author: ntba2
-# Date: 12-22-2005
-#
+# myPS2 makefile
 
 EE_OBJS_DIR	= obj
 EE_BIN_DIR	= bin
@@ -10,92 +6,23 @@ EE_BIN		= MYPS2.ELF
 
 #DEVELOPER	= 1
 
-EE_OBJS =	$(EE_OBJS_DIR)/main.o			\
-		$(EE_OBJS_DIR)/GUI.o			\
-		$(EE_OBJS_DIR)/GUI_Load.o		\
-		$(EE_OBJS_DIR)/GUI_Ctrl_Button.o	\
-		$(EE_OBJS_DIR)/GUI_Ctrl_Combo.o		\
-		$(EE_OBJS_DIR)/GUI_Ctrl_Dirview.o	\
-		$(EE_OBJS_DIR)/GUI_Ctrl_Image.o		\
-		$(EE_OBJS_DIR)/GUI_Ctrl_Label.o		\
-		$(EE_OBJS_DIR)/GUI_Ctrl_List.o		\
-		$(EE_OBJS_DIR)/GUI_Ctrl_Progress.o	\
-		$(EE_OBJS_DIR)/GUI_Ctrl_Slider.o	\
-		$(EE_OBJS_DIR)/GUI_Ctrl_ThumbnailPanel.o\
-		$(EE_OBJS_DIR)/GUI_Ctrl_ToggleButton.o	\
-		$(EE_OBJS_DIR)/GUI_M_DlgKeyboard.o	\
-		$(EE_OBJS_DIR)/GUI_M_DlgMsgBox.o	\
-		$(EE_OBJS_DIR)/GUI_M_DlgPartition.o	\
-		$(EE_OBJS_DIR)/GUI_M_DlgYesNo.o		\
-		$(EE_OBJS_DIR)/GUI_M_Language.o		\
-		$(EE_OBJS_DIR)/GUI_M_Main.o		\
-		$(EE_OBJS_DIR)/GUI_M_MyFiles.o		\
-		$(EE_OBJS_DIR)/GUI_M_MyMusic.o		\
-		$(EE_OBJS_DIR)/GUI_M_MyPictures.o	\
-		$(EE_OBJS_DIR)/GUI_M_MyPrograms.o	\
-		$(EE_OBJS_DIR)/GUI_M_Network.o		\
-		$(EE_OBJS_DIR)/GUI_M_Partitions.o	\
-		$(EE_OBJS_DIR)/GUI_M_Radio.o		\
-		$(EE_OBJS_DIR)/GUI_M_Settings.o		\
-		$(EE_OBJS_DIR)/GUI_M_Skins.o		\
-		$(EE_OBJS_DIR)/GUI_M_View.o		\
-		$(EE_OBJS_DIR)/gamepad.o		\
-		$(EE_OBJS_DIR)/elf.o			\
-		$(EE_OBJS_DIR)/timer.o			\
-		$(EE_OBJS_DIR)/imgscale.o		\
-		$(EE_OBJS_DIR)/file.o			\
-		$(EE_OBJS_DIR)/sysconf.o		\
-		$(EE_OBJS_DIR)/mp3.o			\
-		$(EE_OBJS_DIR)/scheduler.o		\
-		$(EE_OBJS_DIR)/net.o			\
-		$(EE_OBJS_DIR)/bootscreen.o		\
-		$(EE_OBJS_DIR)/mass_rpc.o		\
-		$(EE_OBJS_DIR)/cdvd_rpc.o		\
-		$(EE_OBJS_DIR)/charset.o		\
-		$(EE_OBJS_DIR)/sjpcm_rpc.o		\
-		$(EE_OBJS_DIR)/loader.o			\
-		$(EE_OBJS_DIR)/usb_mass.o		\
-		$(EE_OBJS_DIR)/iomanx.o			\
-		$(EE_OBJS_DIR)/filexio.o		\
-		$(EE_OBJS_DIR)/ps2dev9.o		\
-		$(EE_OBJS_DIR)/ps2atad.o		\
-		$(EE_OBJS_DIR)/ps2hdd.o			\
-		$(EE_OBJS_DIR)/ps2fs.o			\
-		$(EE_OBJS_DIR)/poweroff.o		\
-		$(EE_OBJS_DIR)/cdvd.o			\
-		$(EE_OBJS_DIR)/ps2ip.o			\
-		$(EE_OBJS_DIR)/ps2ips.o			\
-		$(EE_OBJS_DIR)/ps2smap.o		\
-		$(EE_OBJS_DIR)/ps2ftpd.o		\
-		$(EE_OBJS_DIR)/sjpcm.o			\
-		$(EE_OBJS_DIR)/boot_bkg.o		\
-		$(EE_OBJS_DIR)/boot_font.o		\
-		$(EE_OBJS_DIR)/boot_dat.o		\
+EE_OBJS =	main.o GUI.o GUI_Load.o	GUI_Ctrl_Button.o GUI_Ctrl_Combo.o GUI_Ctrl_Dirview.o	\
+		GUI_Ctrl_Image.o GUI_Ctrl_Label.o GUI_Ctrl_List.o GUI_Ctrl_Progress.o		\
+		GUI_Ctrl_Slider.o GUI_Ctrl_ThumbnailPanel.o GUI_Ctrl_ToggleButton.o		\
+		GUI_M_DlgKeyboard.o GUI_M_DlgMsgBox.o GUI_M_DlgPartition.o GUI_M_DlgYesNo.o	\
+		GUI_M_Language.o GUI_M_Main.o GUI_M_MyFiles.o GUI_M_MyMusic.o			\
+		GUI_M_MyPictures.o GUI_M_MyPrograms.o GUI_M_Network.o GUI_M_Partitions.o	\
+		GUI_M_Radio.o GUI_M_Settings.o GUI_M_Skins.o GUI_M_View.o gamepad.o elf.o	\
+		timer.o	imgscale.o file.o sysconf.o mp3.o scheduler.o net.o bootscreen.o	\
+		mass_rpc.o cdvd_rpc.o charset.o	sjpcm_rpc.o loader.o usb_mass.o	iomanx.o	\
+		filexio.o ps2dev9.o ps2atad.o ps2hdd.o ps2fs.o poweroff.o cdvd.o ps2ip.o	\
+		ps2ips.o ps2smap.o ps2ftpd.o sjpcm.o boot_bkg.o	boot_font.o boot_dat.o
 
+EE_OBJS	:= $(EE_OBJS:%=$(EE_OBJS_DIR)/%)
 
-EE_LIBS	=	-lc		\
-		-lgslib		\
-		-ldmaKit	\
-		-lpad		\
-		-lfileXio	\
-		-ljpg		\
-		-lmf		\
-		-lhdd		\
-		-lpng		\
-		-lm		\
-		-lz		\
-		-lmc		\
-		-lpatches	\
-		-lpoweroff	\
-		-lmad		\
-		-lsample	\
-		-lcdvd		\
-		-ldebug		\
-		-lps2ip		\
-		-lscew		\
-		-lexpat		\
-		-liconv		\
-
+EE_LIBS	=	-lc -lgslib -ldmaKit -lpad -lfileXio -ljpg -lmf	-lhdd -lpng -lm	 -lz -lmc	\
+		-lpatches -lpoweroff -lmad -lsample -lcdvd -ldebug -lps2ip -lscew -lexpat	\
+		-liconv
 
 # add lib directories
 EE_LDFLAGS +=	-L../lib/gsLib -L../lib/dmaKit -L../lib/libmad -L../lib/libsample -L../lib/libjpg \

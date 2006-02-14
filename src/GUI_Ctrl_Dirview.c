@@ -32,7 +32,7 @@ void GUI_Ctrl_Dirview_Draw( const GUIControl_t *pCtrl )
 	unsigned int nItemHeight, nTextPosY, nTextPosX, nStrIndex;
 	const GUIMenuImage_t *pTexNoFocus, *pTexFocus, *pTexMarked,
 		*pTex, *pScrollTex;
-	const GUIFont_t *pFont;
+	const GUIMenuFont_t *pFont;
 	fileInfo_t *pItem;
 	char szStr[ MAX_PATH + 1 ];
 	GUICtrl_Dirview_t *pDir = pCtrl->pCtrl;
@@ -53,7 +53,7 @@ void GUI_Ctrl_Dirview_Draw( const GUIControl_t *pCtrl )
 	if( !pTexMarked )
 		return;
 
-	pFont = GUI_FontGet( pDir->nFontIdx );
+	pFont = GUI_MenuGetFont( pCtrl->pParent, pDir->nFontIdx );
 	if( !pFont )
 		return;
 
@@ -334,9 +334,9 @@ void GUI_Ctrl_Dirview_SetCursor( GUIControl_t *pCtrl, unsigned int nPos )
 {
 	unsigned int nItemHeight, nNumDraw, nOld;
 	GUICtrl_Dirview_t *pDir = pCtrl->pCtrl;
-	const GUIFont_t *pFont;
+	const GUIMenuFont_t *pFont;
 
-	pFont = GUI_FontGet( pDir->nFontIdx );
+	pFont = GUI_MenuGetFont( pCtrl->pParent, pDir->nFontIdx );
 
 	nItemHeight = pDir->nItemHeight ? pDir->nItemHeight : gsLib_font_height(pFont->gsFont);
 	nNumDraw	= pDir->nHeight / (nItemHeight + pDir->nPadding);
