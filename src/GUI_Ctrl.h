@@ -188,6 +188,12 @@ typedef struct
 
 typedef struct
 {
+	char			*pName;
+	fileInfo_t		Item;
+} GUIDVItem_t;
+
+typedef struct
+{
 	int				nTexture;
 	int				nTextureFocus;
 	int				nTextureMarked;
@@ -210,7 +216,7 @@ typedef struct
 	unsigned int	nDownTexPosY;
 
 	unsigned int	nNumItems;
-	fileInfo_t		*pItems;
+	GUIDVItem_t		*pItems;
 	unsigned int	nSelectedItem;
 	unsigned int	nStartItem;
 	char			szFilter[ MAX_PATH + 1 ];
@@ -365,7 +371,9 @@ int				GUI_Ctrl_List_Empty( const GUIControl_t *pCtrl );
 // Dirview
 void				GUI_Ctrl_Dirview_Init( GUIControl_t *pCtrl );
 void				GUI_Ctrl_Dirview_Draw( const GUIControl_t *pCtrl );
-int					GUI_Ctrl_Dirview_AddItem( GUIControl_t *pCtrl, const fileInfo_t *pInfo );
+int					GUI_Ctrl_Dirview_AddItem( GUIControl_t *pCtrl, const fileInfo_t *pInfo,
+											  const char *pName );
+const fileInfo_t*	GUI_Ctrl_Dirview_FindItem( const GUIControl_t *pCtrl, const char *pFileName );
 void				GUI_Ctrl_Dirview_Clean( GUIControl_t *pCtrl );
 void				GUI_Ctrl_Dirview_SetDir( GUIControl_t *pCtrl, const char *pDirectory );
 void				GUI_Ctrl_Dirview_SetCursor( GUIControl_t *pCtrl, unsigned int nPos );
@@ -382,11 +390,16 @@ int					GUI_Ctrl_Dirview_IsRoot( GUIControl_t *pCtrl );
 unsigned int		GUI_Ctrl_Dirview_GetCount( const GUIControl_t *pCtrl );
 const fileInfo_t*	GUI_Ctrl_Dirview_GetItem( const GUIControl_t *pCtrl, unsigned int nIndex );
 void				GUI_Ctrl_Dirview_Sort( GUIControl_t *pCtrl, int nSortFunc );
+int					GUI_Ctrl_Dirview_SortByName( const void *a, const void *b );
+int					GUI_Ctrl_Dirview_SortPanelBySize( const void *a, const void *b );
+int					GUI_Ctrl_Dirview_SortPanelByType( const void *a, const void *b );
+int					GUI_Ctrl_Dirview_Root( const GUIControl_t *pCtrl );
 
 #define GUI_NOT_DIRVIEW_DIR			0x00000010
 #define GUI_NOT_DIRVIEW_CLICKED		0x00000020
 #define GUI_NOT_DIRVIEW_UNMARK		0x00000040
 #define GUI_NOT_DIRVIEW_MARK		0x00000080
+#define GUI_NOT_DIRVIEW_POS			0x00000100
 
 #define GUI_SORT_NAME				0
 #define GUI_SORT_SIZE				1

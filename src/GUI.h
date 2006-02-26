@@ -62,6 +62,7 @@ enum eGUIMenus
 	GUI_MENU_PARTITION1,
 	GUI_MENU_PARTITION2,
 	GUI_MENU_VIEW,
+	GUI_MENU_SAMBA,
 
 	GUI_MENU_NUM
 };
@@ -157,7 +158,7 @@ typedef struct
 
 typedef struct
 {
-	int	nWeekday;		// 0 - 7
+	int	nWeekday;		// 0 - 6
 	int	nDay;			// 0 - 30
 	int nMonth;			// 0 - 11
 	int nYear;			// 0 - 99
@@ -207,7 +208,6 @@ void GUI_CloseDialog( GUIMenu_t *pDialog, unsigned int nExitCode, unsigned int n
 void GUI_RenderMenu( const GUIMenu_t *pMenu );
 void GUI_Render( void );
 void GUI_UpdateSpecialCtrls( GUIMenu_t *pMenu );
-void GUI_UpdateTime( void );
 void GUI_Screenshot( void );
 
 int	GUI_ImageLookup( const GUI_t *lpGUI, const char *lpImageName );

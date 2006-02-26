@@ -19,6 +19,9 @@ MA  02110-1301, USA.
 =================================================================
 */
 
+/* this menu should be renamed to localization but renaming would
+   break compatibility with older skins */
+
 #include <GUI.h>
 #include <GUI_Ctrl.h>
 #include <GUI_Menu.h>
@@ -26,6 +29,8 @@ MA  02110-1301, USA.
 
 #define ID_LIST				100
 #define ID_CHARSET			101
+#define ID_TIMEZONE			102
+#define ID_DST				103
 
 #define DLG_LANG_CONFIRM	0
 
@@ -46,6 +51,48 @@ static Charset_t Charset[] =
 	{	"ISO-8859-14",	"Latin-8 Celtic (ISO-8859-14)"			},
 	{	"ISO-8859-15",	"Latin-9 (ISO-8859-15)"					},
 	{	"ISO-8859-16",	"Latin-10 SE European (ISO-8859-16)"	}
+};
+
+typedef struct
+{
+	s32			nOffset;
+	const char	*pTzName;
+} Timezone_t;
+
+static Timezone_t Timezone[] =
+{
+	{	-720,	"(GMT-12:00) Eniwetok, Kwajalein"					},
+	{	-660,	"(GMT-11:00) Midway Island, Samoa"					},
+	{	-600,	"(GMT-10:00) Hawaii"								},
+	{	-540,	"(GMT-09:00) Alaska"								},
+	{	-480,	"(GMT-08:00) Pacific Time (US & Canada)"			},
+	{	-420,	"(GMT-07:00) Mountain Time (US & Canada)"			},
+	{	-360,	"(GMT-06:00) Central Time (US & Canada)"			},
+	{	-300,	"(GMT-05:00) Eastern Time (US & Canada)"			},
+	{	-240,	"(GMT-04:00) Atlantic Time (Canada)"				},
+	{	-210,	"(GMT-03:30) Newfoundland"							},
+	{	-180,	"(GMT-03:00) Brasilia, Buenos Aires, Greenland"		},
+	{	-120,	"(GMT-02:00) Mid-Atlantic"							},
+	{	-60,	"(GMT-01:00) Azores"								},
+	{	  0,	"(GMT+00:00) Dublin, Edinburgh, London"				},
+	{	 60,	"(GMT+01:00) Brussels, Copenhagen, Madrid, Paris"	},
+	{	120,	"(GMT+02:00) Helsinki, Riga, Tallinn"				},
+	{	180,	"(GMT+03:00) Moscow, St. Petersburg, Volgograd"		},
+	{	240,	"(GMT+04:00) Baku, Tbilisi, Yerevan"				},
+	{	270,	"(GMT+04:30) Kabul"									},
+	{	300,	"(GMT+05:00) Islamabad, Karachi, Tashkent"			},
+	{	330,	"(GMT+05:30) Calcutta, Mumbai, New Delhi"			},
+	{	345,	"(GMT+05:45) Kathmandu"								},
+	{	360,	"(GMT+06:00) Almaty, Novosibirsk"					},
+	{	390,	"(GMT+06:30) Rangoon"								},
+	{	420,	"(GMT+07:00) Bangkok, Hanoi, Jakarta"				},
+	{	480,	"(GMT+08:00) Beijing, Hong Kong, Singapore"			},
+	{	540,	"(GMT+09:00) Osaka, Sapporo, Tokyo, Seoul"			},
+	{	570,	"(GMT+09:30) Adelaide, Darwin"						},
+	{	600,	"(GMT+10:00) Canberra, Melbourne, Sydney, Brisbane"	},
+	{	660,	"(GMT+11:00) Magadan, Solomon Is., New Caledonia"	},
+	{	720,	"(GMT+12:00) Fiji, Kamchatka, Wellington"			},
+	{	780,	"(GMT+13:00) Nuku'alofa"							}
 };
 
 static void ListLanguages( void )
@@ -97,6 +144,7 @@ unsigned int GUI_CB_Language( GUIMenu_t *lpGUIMenu, unsigned int nGUIMsg,
 	char			*pStr, szFileName[MAX_PATH + 1], szOldLang[MAX_PATH + 1];
 	const char		*pSkinName;
 	char			szCharset[256];
+	s32				nTimezone;
 
 	switch( nGUIMsg )
 	{
@@ -119,6 +167,28 @@ unsigned int GUI_CB_Language( GUIMenu_t *lpGUIMenu, unsigned int nGUIMsg,
 
 				GUI_Ctrl_Combo_SetCurSel( pCtrl, nIndex );
 			}
+
+			pCtrl = GUI_ControlByID(ID_TIMEZONE);
+			if( pCtrl && GUI_Ctrl_Combo_Empty(pCtrl) )
+			{
+				nIndex = 0;
+				SC_GetValueForKey_Int( "time_timezone", &nTimezone );
+				
+				for( i = 0; i < (sizeof(Timezone) / sizeof(Timezone[0])); i++ )
+				{
+					if( Timezone[i].nOffset == nTimezone )
+						nIndex = i;
+
+					GUI_Ctrl_Combo_Add( pCtrl, Timezone[i].pTzName, i );
+				}
+
+				GUI_Ctrl_Combo_SetCurSel( pCtrl, nIndex );
+			}
+
+			pCtrl = GUI_ControlByID(ID_DST);
+			if( pCtrl )
+				GUI_Ctrl_ToggleButton_SetState( pCtrl, SC_GetValueForKey_Int("time_dst",
+												NULL ));
 			break;
 
 		// free associated item data
@@ -154,6 +224,26 @@ unsigned int GUI_CB_Language( GUIMenu_t *lpGUIMenu, unsigned int nGUIMsg,
 
 					// reset charset converter
 					CharsetConvert_Reset();
+					break;
+
+				case ID_TIMEZONE:
+					SC_SetValueForKey_Int( "time_timezone", Timezone[ nOther ].nOffset );
+
+					// daylight saving time enabled?
+					if( SC_GetValueForKey_Int( "time_dst", NULL ) )
+						ps2time_setTimezone( Timezone[ nOther ].nOffset + 60 );
+					else
+						ps2time_setTimezone( Timezone[ nOther ].nOffset );
+					break;
+
+				case ID_DST:
+					SC_SetValueForKey_Int( "time_dst", nOther );
+
+					nTimezone = SC_GetValueForKey_Int( "time_timezone", NULL );
+					if( nOther )
+						nTimezone += 60;
+
+					ps2time_setTimezone( nTimezone );
 					break;
 
 				case ID_GO_BACK:

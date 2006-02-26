@@ -40,6 +40,9 @@ const pair_t SC_DEFAULTS[] =
 	{	"net_netmask",			DEFAULT_NETMASK,					NULL,	NULL	},
 	{	"net_gateway",			DEFAULT_GATEWAY_IP,					NULL,	NULL	},
 	{	"net_dns",				DEFAULT_DNS_IP,						NULL,	NULL	},
+	{	"net_smb_workgroup",	DEFAULT_WORKGROUP,					NULL,	NULL	},
+	{	"net_smb_wins",			"",									NULL,	NULL	},
+	{	"net_smb_debug",		"0",								NULL,	NULL	},
 
 	{	"ftp_enable",			"1",								NULL,	NULL	},
 	{	"ftp_port",				DEFAULT_FTP_PORT,					NULL,	NULL	},
@@ -58,6 +61,9 @@ const pair_t SC_DEFAULTS[] =
 
 	{	"hdd_boot_part",		"",									NULL,	NULL	},
 	{	"hdd_boot_path",		"",									NULL,	NULL	},
+
+	{	"time_timezone",		"0",								NULL,	NULL	},
+	{	"time_dst",				"0",								NULL,	NULL	}
 
 };
 

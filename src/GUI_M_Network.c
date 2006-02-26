@@ -34,6 +34,7 @@ MA  02110-1301, USA.
 #define ID_FTP_ANONYMOUS	107
 #define ID_FTP_USERNAME		108
 #define ID_FTP_PASSWORD		109
+#define ID_SMB_SETTINGS		110
 
 #define DLG_NET_IP			0
 #define DLG_NET_MASK		1
@@ -119,6 +120,10 @@ unsigned int GUI_CB_Network( GUIMenu_t *lpGUIMenu, unsigned int nGUIMsg,
 					GUI_DlgKeyboard( SC_GetValueForKey_Str( "ftp_password", NULL ),
 									 GUI_GetLangStr(LANG_STR_FTP_PASSWORD),
 									 DLG_FTP_PASSWORD );
+					break;
+					
+				case ID_SMB_SETTINGS:
+					GUI_OpenMenu( GUI_MENU_SAMBA );
 					break;
 
 				case ID_GO_BACK:

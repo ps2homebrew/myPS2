@@ -43,7 +43,7 @@ MA  02110-1301, USA.
 
 static shoutEntry_t		*pStations		= NULL;
 static int				nNumStations	= 0;
-static int				nNextRefresh	= 0;
+static time_t			nNextRefresh	= 0;
 static int				nNumBookmarks	= 0;
 static shoutBookmark_t	*pBookmarks		= NULL;
 
@@ -498,7 +498,7 @@ int GetRadioStations( void )
 
 	pStatus = GUI_ControlByID(ID_STATUS);
 
-	if( nNextRefresh > tnTimeMsec() )
+	if( nNextRefresh > ps2time_time(NULL) )
 	{
 		GUI_DlgMsgBox( GUI_GetLangStr(LANG_STR_EVERY_5_MINUTES),
 					   GUI_GetLangStr(LANG_STR_ERROR),
@@ -529,7 +529,6 @@ int GetRadioStations( void )
 	{
 		snprintf( szPath, sizeof(szPath), "%sshoutcast/stations.xml", GetElfPath() );
 
-		// fixme: forgot why this is here..
 		fHandle = FileOpen( szPath, O_RDONLY );
 
 		if( fHandle.fh >= 0 )
@@ -569,7 +568,7 @@ int GetRadioStations( void )
 
 	RefreshStationList();
 
-	nNextRefresh = tnTimeMsec() + 1000 * 60 * 5;
+	nNextRefresh = ps2time_time(NULL) + 60 * 5;
 	return 1;
 }
 

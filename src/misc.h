@@ -34,9 +34,11 @@ MA  02110-1301, USA.
 
 #include <tamtypes.h>
 #include <../lib/gsLib/gsLib.h>
+#include <../lib/libps2time/libps2time.h>
 #include <libcdvd.h>
+#include <samba.h>
 
-#define MYPS2_VERSION "1.1"
+#define MYPS2_VERSION "1.2"
 
 //
 // main.c
@@ -56,6 +58,7 @@ extern u8	*ps2smap_irx;
 extern u8	*ps2ftpd_irx;
 extern u8	*sjpcm_irx;
 extern u8	*ps2ips_irx;
+extern u8	*dns_irx;
 
 extern int	size_iomanx_irx;
 extern int	size_filexio_irx;
@@ -71,6 +74,7 @@ extern int	size_ps2smap_irx;
 extern int	size_ps2ftpd_irx;
 extern int	size_sjpcm_irx;
 extern int	size_ps2ips_irx;
+extern int	size_dns_irx;
 
 #define RGB(r,g,b)		GS_SETREG_RGBAQ(r,g,b,0x80,0x00)
 #define RGBA(r,g,b,a)	GS_SETREG_RGBAQ(r,g,b,a,0x00)
@@ -149,15 +153,6 @@ void NET_Init( const char *path );
 int NET_Available( void );
 void FTP_Init( void );
 int FTP_Available( void );
-
-//
-// timer.c
-//
-
-void tnTimeInit( void );
-u64 tnTimeUsec( void );
-u64 tnTimeMsec( void );
-void tnTimeFini( void );
 
 //
 // bootscreen.c

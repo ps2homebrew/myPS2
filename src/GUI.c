@@ -27,7 +27,6 @@ MA  02110-1301, USA.
 #include <Gamepad.h>
 #include <Scheduler.h>
 #include <Mp3.h>
-#include <osd_config.h>
 
 GUIMenus_t GUIMenus[] =
 {
@@ -49,7 +48,8 @@ GUIMenus_t GUIMenus[] =
 	{	"language.xml",			GUI_CB_Language			},
 	{	"dlg_partition1.xml",	GUI_CB_DlgPartition1	},
 	{	"dlg_partition2.xml",	GUI_CB_DlgPartition2	},
-	{	"view.xml",				GUI_CB_View				}
+	{	"view.xml",				GUI_CB_View				},
+	{	"samba.xml",			GUI_CB_Samba			}
 
 };
 
@@ -99,9 +99,6 @@ int GUI_Init( void )
 	gsLib_set_offset( SC_GetValueForKey_Int( "scr_adjust_x", NULL ),
 					  SC_GetValueForKey_Int( "scr_adjust_y", NULL ) );
 
-	// GUI_Init is called before GUI_Run
-	GUI_UpdateTime();
-
 	GUI_OpenMenu( GUI_MENU_MAIN );
 	return 1;
 }
@@ -111,7 +108,7 @@ void GUI_Run( void *pThreadArgs )
 	unsigned int	nPadBtns		= 0;
 	unsigned int	nPadBtnsOld		= 0;
 	static u64		nPlayTime		= 0;
-	static u64		nTimeUpdate		= 0;
+	static time_t	nTimeUpdate		= 0;
 
 	while(1)
 	{
@@ -123,10 +120,9 @@ void GUI_Run( void *pThreadArgs )
 		}
 
 		// update clock display once a minute
-		if( nTimeUpdate < tnTimeMsec() )
+		if( nTimeUpdate < ps2time_time(NULL) )
 		{
-			nTimeUpdate = tnTimeMsec() + 1000 * 60;
-			GUI_UpdateTime();
+			nTimeUpdate = ps2time_time(NULL) * 60;
 			GUI_Render();
 		}
 
@@ -1379,6 +1375,13 @@ void GUI_UpdateSpecialCtrls( GUIMenu_t *pMenu )
 	char szLabel[MAX_PATH + 1];
 	const char *pStr;
 	int nMins, nSecs;
+	time_t nTimeStamp;
+	struct tm *pTimeNow;
+	int nWDayStr;
+
+	ps2time_time(&nTimeStamp);
+	pTimeNow = ps2time_localtime(&nTimeStamp);
+	nWDayStr = pTimeNow->tm_wday ? pTimeNow->tm_wday - 1 : 6;
 
 	// update controls with special ids (1-100)
 	for( i = 0; i < pMenu->iNumControls; i++ )
@@ -1455,174 +1458,73 @@ void GUI_UpdateSpecialCtrls( GUIMenu_t *pMenu )
 			// TIME IDs
 			case ID_TIME_DATESTRING:
 				snprintf( szLabel, sizeof(szLabel), "%s, %s %02i",
-						  GUI_GetLangStr( LANG_STR_MONDAY  + GUI.Time.nWeekday ),
-						  GUI_GetLangStr( LANG_STR_JANUARY + GUI.Time.nMonth ),
-						  GUI.Time.nDay + 1 );
+						  GUI_GetLangStr( LANG_STR_MONDAY  + nWDayStr ),
+						  GUI_GetLangStr( LANG_STR_JANUARY + pTimeNow->tm_mon ),
+						  pTimeNow->tm_mday );
 
 				GUI_Ctrl_Label_SetText( &pMenu->pControls[i], szLabel );
 				break;
 
 			case ID_TIME_WEEKDAY:
 				snprintf( szLabel, sizeof(szLabel), "%s",
-						  GUI_GetLangStr( LANG_STR_MONDAY + GUI.Time.nWeekday ) );
+						  GUI_GetLangStr( LANG_STR_MONDAY + nWDayStr ) );
 
 				GUI_Ctrl_Label_SetText( &pMenu->pControls[i], szLabel );
 				break;
 
 			case ID_TIME_DAY:
-				snprintf( szLabel, sizeof(szLabel), "%02i", GUI.Time.nDay + 1 );
+				snprintf( szLabel, sizeof(szLabel), "%02i", pTimeNow->tm_mday );
 				GUI_Ctrl_Label_SetText( &pMenu->pControls[i], szLabel );
 				break;
 
 			case ID_TIME_MONTH_STR:
 				snprintf( szLabel, sizeof(szLabel), "%s",
-						  GUI_GetLangStr( LANG_STR_JANUARY + GUI.Time.nMonth ) );
+						  GUI_GetLangStr( LANG_STR_JANUARY + pTimeNow->tm_mon ) );
 
 				GUI_Ctrl_Label_SetText( &pMenu->pControls[i], szLabel );
 				break;
 
 			case ID_TIME_MONTH:
-				snprintf( szLabel, sizeof(szLabel), "%02i", GUI.Time.nMonth + 1 );
+				snprintf( szLabel, sizeof(szLabel), "%02i", pTimeNow->tm_mon + 1 );
 				GUI_Ctrl_Label_SetText( &pMenu->pControls[i], szLabel );
 				break;
 
 			case ID_TIME_YEAR:
-				snprintf( szLabel, sizeof(szLabel), "%i", GUI.Time.nYear );
+				snprintf( szLabel, sizeof(szLabel), "%i", pTimeNow->tm_year + 1900 );
 				GUI_Ctrl_Label_SetText( &pMenu->pControls[i], szLabel );
 				break;
 
 			case ID_TIME_CURRENT:
 				snprintf( szLabel, sizeof(szLabel), "%02i:%02i",
-						  GUI.Time.nHour, GUI.Time.nMinute );
+						  pTimeNow->tm_hour, pTimeNow->tm_min );
 
 				GUI_Ctrl_Label_SetText( &pMenu->pControls[i], szLabel );
 				break;
 		}
 	}
-}
-
-void GUI_UpdateTime( void )
-{
-	CdvdClock_t clock;
-	int			nSecond;
-	int			nMinute;
-	int			nHour;
-	int			nDay;
-	int			nMonth;
-	int			nYear;
-
-	// 1.1.1970 war ein Donnerstag
-	int			nDiffDays = 3;
-	int			bLeapYear = 0;
-	int			i;
-	s32			nGMTOffset;
-	static s32	nTimeZone = 0;
-
-	int			nMonthsDays[] =
-				{	31, 28, 31,	30,	31,	30,	31,	31,	30,	31,	30,	31	};
-
-	cdReadClock( &clock );
-
-	if( !nTimeZone )
-		nTimeZone = configGetTimezone();
-
-	nGMTOffset	= nTimeZone / 60;
-	nSecond		= BCD2DEC(clock.second);
-	nMinute		= BCD2DEC(clock.minute);
-	nHour		= BCD2DEC(clock.hour);		// Hour in Japan (GMT + 9)
-	nDay		= BCD2DEC(clock.day);
-	nMonth		= BCD2DEC(clock.month);
-	nYear		= BCD2DEC(clock.year);
-
-	nYear		= nYear + 2000;
-	nMonth		= nMonth - 1;
-	nDay		= nDay - 1;
-	nHour		= nHour - 9 + nGMTOffset;
-
-	if( nHour < 0 )
-	{
-		nHour += 24;
-
-		if( (nMonth > 0) && (nDay == 0) )
-		{
-			nMonth--;
-		}
-		else if( (nMonth == 0) && (nDay == 0) )
-		{
-			nMonth = 11;
-			nYear--;
-		}
-
-		if( nDay > 0 )
-		{
-			nDay--;
-		}
-		else
-		{	// fixme leapyear
-			nDay = nMonthsDays[nMonth];
-		}
-	}
-
-	for( i = 1970; i < nYear; i++ )
-	{
-		if(	(((i % 4) == 0) && ((i % 100) != 0)) ||
-			((i % 400) == 0) )
-		{
-			nDiffDays += 366;
-		}
-		else
-		{
-			nDiffDays += 365;
-		}
-	}
-
-	if( (((nYear % 4) == 0) && ((i % 100) != 0)) ||
-		((i % 400) == 0) )
-	{
-		bLeapYear = 1;
-	}
-
-	for( i = 0; i < nMonth; i++ )
-	{
-		if( nMonth == 1 && bLeapYear )
-			nDiffDays += 29;
-		else
-			nDiffDays += nMonthsDays[i];
-	}
-
-	for( i = 0; i < nDay; i++ )
-	{
-		nDiffDays++;
-	}
-
-	GUI.Time.nHour		= nHour;
-	GUI.Time.nMinute	= nMinute;
-	GUI.Time.nMonth		= nMonth;
-	GUI.Time.nWeekday	= nDiffDays % 7;
-	GUI.Time.nDay		= nDay;
-	GUI.Time.nYear		= nYear;
 }
 
 void GUI_Screenshot( void )
 {
 	char szPath[MAX_PATH + 1];
 	char szName[MAX_PATH + 1];
-	CdvdClock_t clock;
+	time_t timer;
+	struct tm *now;
 	
 	if( !SC_GetValueForKey_Int( "scr_screenshot", NULL ) )
 		return;
 
 	SC_GetValueForKey_Str( "scr_path", szPath );
 
-	if( !cdReadClock(&clock) )
-		return;
+	ps2time_time( &timer );
+	now = ps2time_localtime( &timer );
 
 	if( szPath[ strlen(szPath) - 1 ] != '/' )
 		strcat( szPath, "/" );
 
 	snprintf( szName, sizeof(szName), "%02i-%02i-%02i_%02i-%02i-%02i.jpg",
-			  BCD2DEC(clock.month), BCD2DEC(clock.day), BCD2DEC(clock.year),
-			  BCD2DEC(clock.hour), BCD2DEC(clock.minute), BCD2DEC(clock.second) );
+			  now->tm_mon + 1, now->tm_mday, now->tm_year + 1900,
+			  now->tm_hour, now->tm_min, now->tm_sec );
 
 	strncat( szPath, szName, MAX_PATH );
 

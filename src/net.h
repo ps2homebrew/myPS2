@@ -79,62 +79,6 @@ int inet_aton( const char *cp, struct in_addr *addr );
 #define isspace(c)			(c == ' ' || c == '\f' || c == '\n' || c == '\r' || c == '\t' || c == '\v')
 #endif
 
-//
-// ps2sdksrc/iop/tcpip/dns/
-
-typedef struct t_dns_cache
-{
-	struct t_dns_cache *next;
-	char *hostName;
-	struct in_addr ipAddr;
-	int rv;
-} t_dnsCache;
-
-int dnsInit( const char *dns_addr ); // replaces _start
-void dnsResolveInit();
-int	dnsPrepareQueryPacket(u8 *packetBuf, char *hostName); // returns size of packet
-int	dnsParseResponsePacket(u8 *packetBuf, int pktSize, struct in_addr *ip);
-void dnsCacheAdd(t_dnsCache *entry);
-t_dnsCache *dnsCacheFind(char *hostName);
-int	getLabelLength(u8 *buffer);
-int	getResourceRecordLength(u8 *buffer);
-int gethostbyname(char *name, struct in_addr *ip);
-
-#define DNS_ERROR_HOST_NOT_FOUND	-1
-#define	DNS_ERROR_CONNECT			-2
-#define	DNS_ERROR_PARSE				-3
-
-typedef struct
-{
-	u16 id;
-	u16 flags;
-	u16 QDCOUNT;
-	u16 ANCOUNT;
-	u16 NSCOUNT;
-	u16 ARCOUNT;
-} t_dnsMessageHeader;
-
-typedef struct
-{
-	u16 type;
-	u16 class;
-	u32 ttl;
-	u16 rdlength;
-	u8 rdata[4]; // always 4 for A type RR's
-} t_dnsResourceRecordHostAddr __attribute__ ((packed));
-
-#define RCODE_noError			0
-#define RCODE_formatError		1
-#define	RCODE_serverFailure		2
-#define	RCODE_nameError			3
-#define	RCODE_notImplemented	4
-#define RCODE_refused			5
-
-#define	TYPE_A					1	// host address
-#define	TYPE_PTR				12	// domain name pointer
-
-#define CLASS_IN				1	// internet class
-
-#define	NAMESERVER_PORT			53
+int dnsInit( const char *dns_addr );
 
 #endif

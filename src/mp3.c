@@ -919,10 +919,10 @@ enum mad_flow _mp3_output( void *data, struct mad_header const *header, struct m
 		lastVolume = mp3_volume;
 	}
 
-	if( (nTimer + 1000) <= tnTimeMsec() ) {
+	if( (nTimer + 1000) <= ps2time_time_msec(NULL) ) {
 		mp3_curtime++;
 
-		nTimer = tnTimeMsec();
+		nTimer = ps2time_time_msec(NULL);
 	}
 
 	if( MP3_GetStatus() == MP3_STREAMING )

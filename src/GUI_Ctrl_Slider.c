@@ -120,10 +120,10 @@ int GUI_Ctrl_Slider_Input( GUIControl_t *pCtrl, unsigned int nPadBtns  )
 	s64		nPos;
 
 	// if no input for over 250 msecs reset press mode
-	if( tnTimeMsec() > nLastInput + 250 )
+	if( ps2time_time_msec(NULL) > nLastInput + 250 )
 		GP_SetPressMode(0);
 
-	nLastInput = tnTimeMsec();
+	nLastInput = ps2time_time_msec(NULL);
 
 	// L1 and R1 set the indicator to the min or max value
 	if( nPadBtns & PAD_L1 )
@@ -152,12 +152,12 @@ int GUI_Ctrl_Slider_Input( GUIControl_t *pCtrl, unsigned int nPadBtns  )
 	}
 
 	// delay input a little so user can finetune slider value
-	if( (nDelayTimer > tnTimeMsec()) && (GP_GetPressMode()) )
+	if( (nDelayTimer > ps2time_time_msec(NULL)) && (GP_GetPressMode()) )
 		return 1;
 
 	if( GP_GetPressMode() == 0 )
 	{
-		nDelayTimer = tnTimeMsec() + 500;
+		nDelayTimer = ps2time_time_msec(NULL) + 500;
 		GP_SetPressMode(1);
 	}
 

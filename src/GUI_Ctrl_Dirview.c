@@ -35,6 +35,7 @@ void GUI_Ctrl_Dirview_Draw( const GUIControl_t *pCtrl )
 	const GUIMenuFont_t *pFont;
 	fileInfo_t *pItem;
 	char szStr[ MAX_PATH + 1 ];
+	const char *pString;
 	GUICtrl_Dirview_t *pDir = pCtrl->pCtrl;
 
 	if( pDir->nTexture == -1 || pDir->nTextureFocus == -1 ||
@@ -70,8 +71,11 @@ void GUI_Ctrl_Dirview_Draw( const GUIControl_t *pCtrl )
 		if( nItemIdx >= pDir->nNumItems )
 			break;
 
-		pItem = &pDir->pItems[nItemIdx];
-		bItemFocus = (bHasFocus) && (nItemIdx == pDir->nSelectedItem);
+		pItem		= &pDir->pItems[nItemIdx].Item;
+		bItemFocus	= (bHasFocus) && (nItemIdx == pDir->nSelectedItem);
+
+		pString		= pDir->pItems[nItemIdx].pName ? pDir->pItems[nItemIdx].pName :
+					  pDir->pItems[nItemIdx].Item.name;
 		
 		pTex = (pItem->flags & FLAG_MARKED) ? pTexMarked : pTexNoFocus;
 
@@ -90,7 +94,7 @@ void GUI_Ctrl_Dirview_Draw( const GUIControl_t *pCtrl )
 		nTextPosX	= pCtrl->nPosX + pDir->nTextOffset;
 		nTextPosY	= nItemPosY + (nItemHeight - gsLib_font_height(pFont->gsFont)) / 2;
 
-		CharsetConvert_UTF8ToCharset( szStr, pItem->name, sizeof(szStr) );
+		CharsetConvert_UTF8ToCharset( szStr, pString, sizeof(szStr) );
 		nStrIndex	= strlen(szStr) - 1;
 
 		while( gsLib_font_width( pFont->gsFont, szStr ) > (pDir->nWidth - pDir->nTextOffset * 2) )
@@ -147,11 +151,12 @@ void GUI_Ctrl_Dirview_Draw( const GUIControl_t *pCtrl )
 
 void GUI_Ctrl_Dirview_Init( GUIControl_t *pCtrl )
 {
-	GUICtrl_Dirview_t *pDir = pCtrl->pCtrl;
-	int			nHDD, i;
-	char		szPfs[32];
-	fileInfo_t	file;
-	const char	*pMnt;
+	GUICtrl_Dirview_t	*pDir = pCtrl->pCtrl;
+	int					nHDD, i;
+	char				szPfs[32];
+	fileInfo_t			file;
+	const char			*pMnt;
+	const smbShare_t	*smbShare;
 
 	GUI_Ctrl_Dirview_Clean(pCtrl);
 
@@ -167,7 +172,7 @@ void GUI_Ctrl_Dirview_Init( GUIControl_t *pCtrl )
 			file.flags	= FLAG_DIRECTORY;
 			file.size	= 0;
 
-			GUI_Ctrl_Dirview_AddItem( pCtrl, &file );
+			GUI_Ctrl_Dirview_AddItem( pCtrl, &file, HDD_GetPartition(file.name) );
 
 			// add boot partition
 			if( GetBootMode() == BOOT_HDD )
@@ -181,7 +186,7 @@ void GUI_Ctrl_Dirview_Init( GUIControl_t *pCtrl )
 						file.flags	= FLAG_DIRECTORY;
 						file.size	= 0;
 
-						GUI_Ctrl_Dirview_AddItem( pCtrl, &file );
+						GUI_Ctrl_Dirview_AddItem( pCtrl, &file, HDD_GetPartition(file.name) );
 					}
 				}
 			}
@@ -197,7 +202,7 @@ void GUI_Ctrl_Dirview_Init( GUIControl_t *pCtrl )
 			file.flags	= FLAG_DIRECTORY;
 			file.size	= 0;
 
-			GUI_Ctrl_Dirview_AddItem( pCtrl, &file );
+			GUI_Ctrl_Dirview_AddItem( pCtrl, &file, HDD_GetPartition(file.name) );
 		}
 	}
 
@@ -208,7 +213,7 @@ void GUI_Ctrl_Dirview_Init( GUIControl_t *pCtrl )
 		file.flags	= FLAG_DIRECTORY;
 		file.size	= 0;
 
-		GUI_Ctrl_Dirview_AddItem( pCtrl, &file );
+		GUI_Ctrl_Dirview_AddItem( pCtrl, &file, NULL );
 	}
 
 	if( MC_Available(1) )
@@ -218,7 +223,7 @@ void GUI_Ctrl_Dirview_Init( GUIControl_t *pCtrl )
 		file.flags	= FLAG_DIRECTORY;
 		file.size	= 0;
 
-		GUI_Ctrl_Dirview_AddItem( pCtrl, &file );
+		GUI_Ctrl_Dirview_AddItem( pCtrl, &file, NULL );
 	}
 
 	if( USB_Available() )
@@ -228,7 +233,19 @@ void GUI_Ctrl_Dirview_Init( GUIControl_t *pCtrl )
 		file.flags	= FLAG_DIRECTORY;
 		file.size	= 0;
 
-		GUI_Ctrl_Dirview_AddItem( pCtrl, &file );
+		GUI_Ctrl_Dirview_AddItem( pCtrl, &file, NULL );
+	}
+
+	for( i = 0; i < SMB_GetNumShares(); i++ )
+	{
+		smbShare = SMB_GetShare(i);
+
+		strcpy( file.name, smbShare->pSharePath );
+
+		file.flags	= FLAG_DIRECTORY;
+		file.size	= 0;
+
+		GUI_Ctrl_Dirview_AddItem( pCtrl, &file, smbShare->pShareName );
 	}
 
 	strcpy( file.name, "cdfs:" );
@@ -236,17 +253,18 @@ void GUI_Ctrl_Dirview_Init( GUIControl_t *pCtrl )
 	file.flags	= FLAG_DIRECTORY;
 	file.size	= 0;
 
-	GUI_Ctrl_Dirview_AddItem( pCtrl, &file );
+	GUI_Ctrl_Dirview_AddItem( pCtrl, &file, NULL );
 	GUI_Ctrl_Dirview_SetCursor( pCtrl, 0 );
 }
 
-int GUI_Ctrl_Dirview_AddItem( GUIControl_t *pCtrl, const fileInfo_t *pInfo )
+int GUI_Ctrl_Dirview_AddItem( GUIControl_t *pCtrl, const fileInfo_t *pInfo,
+							  const char *pName )
 {
 	GUICtrl_Dirview_t *pDir = pCtrl->pCtrl;
-	fileInfo_t *pItems;
+	GUIDVItem_t *pItems;
 	unsigned int nMax;
 
-	pItems = malloc( sizeof(fileInfo_t) * (pDir->nNumItems + 1) );	
+	pItems = malloc( sizeof(GUIDVItem_t) * (pDir->nNumItems + 1) );	
 
 	if(!pItems)
 	{
@@ -256,29 +274,59 @@ int GUI_Ctrl_Dirview_AddItem( GUIControl_t *pCtrl, const fileInfo_t *pInfo )
 
 	if( pDir->pItems )
 	{
-		memcpy( pItems, pDir->pItems, pDir->nNumItems * sizeof(fileInfo_t) );
+		memcpy( pItems, pDir->pItems, pDir->nNumItems * sizeof(GUIDVItem_t) );
 		free( pDir->pItems );
 	}
 
 	pDir->pItems	= pItems;
 	pItems			= &pDir->pItems[ pDir->nNumItems ];
 
-	pItems->flags	= pInfo->flags;
-	pItems->size	= pInfo->size;
+	pItems->Item.flags	= pInfo->flags;
+	pItems->Item.size	= pInfo->size;
+	pItems->pName		= NULL;
 
-	nMax = sizeof(pItems->name) - 1;
+	nMax = sizeof(pItems->Item.name) - 1;
 
-	strncpy( pItems->name, pInfo->name, nMax );
-	pItems->name[ nMax ] = 0;
+	strncpy( pItems->Item.name, pInfo->name, nMax );
+	pItems->Item.name[ nMax ] = 0;
+
+	if( pName )
+	{
+		if( (pItems->pName = malloc( strlen(pName) + 1 )) )
+			strcpy( pItems->pName, pName );
+	}
 
 	pDir->nNumItems++;
 
 	return (pDir->nNumItems - 1);
 }
 
+const fileInfo_t *GUI_Ctrl_Dirview_FindItem( const GUIControl_t *pCtrl, const char *pFileName )
+{
+	unsigned int i;
+
+	GUICtrl_Dirview_t *pDir = pCtrl->pCtrl;
+
+	for( i = 0; i < pDir->nNumItems; i++ )
+	{
+		if( !strcmp( pDir->pItems[i].Item.name, pFileName ) )
+			return &pDir->pItems[i].Item;
+	}
+
+	return NULL;
+}
+
 void GUI_Ctrl_Dirview_Clean( GUIControl_t *pCtrl )
 {
+	unsigned int i;
+
 	GUICtrl_Dirview_t *pDir = pCtrl->pCtrl;
+
+	for( i = 0; i < pDir->nNumItems; i++ )
+	{
+		if( pDir->pItems[i].pName )
+			free(pDir->pItems[i].pName);
+	}
 
 	if( pDir->pItems )
 		free(pDir->pItems);
@@ -291,41 +339,38 @@ void GUI_Ctrl_Dirview_Clean( GUIControl_t *pCtrl )
 
 void GUI_Ctrl_Dirview_SetDir( GUIControl_t *pCtrl, const char *pDirectory )
 {
-	unsigned int i, nNumFiles;
-	fileInfo_t *pFileInfo;
+	int i, nNumFiles;
+	fileInfo_t *pFileInfo, f;
 	GUICtrl_Dirview_t *pDir = pCtrl->pCtrl;
 	const char *pFilter;
-
-	GUI_Ctrl_Dirview_Clean(pCtrl);
-
-	// add '..' entries if browsing pfs0:/, cdfs:/, mc0:/ or mass:/ root
-	// so user can switch back to 'select device' list
-	if( IsPartitionRoot(pDirectory) || !strcmp( pDirectory, "cdfs:/" ) ||
-		!strcmp( pDirectory, "mc0:/" )  || !strcmp( pDirectory, "mc1:/")   ||
-		!strcmp( pDirectory, "mass:/" ) )
-	{
-		fileInfo_t f;
-
-		f.flags		= FLAG_DIRECTORY;
-		f.size		= 0;
-
-		strcpy( f.name, ".." );
-	
-		GUI_Ctrl_Dirview_AddItem( pCtrl, &f );
-	}
-
-	strncpy( pDir->szPath, pDirectory, MAX_PATH );
-	pDir->szPath[ MAX_PATH ] = 0;
 
 	pFileInfo = (fileInfo_t*) malloc( sizeof(fileInfo_t) * MAX_DIR_FILES );
 	if( !pFileInfo )
 		return;
 
 	pFilter	= pDir->szFilter[0] ? pDir->szFilter : NULL;	
-	nNumFiles = DirGetContents( pDir->szPath, pFilter, pFileInfo, MAX_DIR_FILES );
+	nNumFiles = DirGetContents( pDirectory, pFilter, pFileInfo, MAX_DIR_FILES );
+
+	if( nNumFiles < 0 ) {
+		free(pFileInfo);
+		return;
+	}
+
+	strncpy( pDir->szPath, pDirectory, MAX_PATH );
+	pDir->szPath[ MAX_PATH ] = 0;
+
+	GUI_Ctrl_Dirview_Clean(pCtrl);
+
+	// add '..'
+	f.flags	= FLAG_DIRECTORY;
+	f.size	= 0;
+
+	strcpy( f.name, ".." );
+	
+	GUI_Ctrl_Dirview_AddItem( pCtrl, &f, NULL );
 
 	for( i = 0; i < nNumFiles; i++ )
-		GUI_Ctrl_Dirview_AddItem( pCtrl, &pFileInfo[i] );
+		GUI_Ctrl_Dirview_AddItem( pCtrl, &pFileInfo[i], NULL );
 
 	free(pFileInfo);
 }
@@ -356,7 +401,7 @@ void GUI_Ctrl_Dirview_SetCursor( GUIControl_t *pCtrl, unsigned int nPos )
 	if( nOld != pDir->nSelectedItem )
 	{
 		pCtrl->pParent->pfnCallback(	pCtrl->pParent, GUI_MSG_CONTROL,
-										MAKEPARAM( pCtrl->nID, GUI_NOT_LIST_POS ),
+										MAKEPARAM( pCtrl->nID, GUI_NOT_DIRVIEW_POS ), 
 										pDir->nSelectedItem );
 	}
 }
@@ -371,7 +416,7 @@ const char *GUI_Ctrl_Dirview_GetDir( const GUIControl_t *pCtrl )
 int GUI_Ctrl_Dirview_Input( GUIControl_t *pCtrl, unsigned int nPadBtns )
 {
 	GUICtrl_Dirview_t *pDir = pCtrl->pCtrl;
-	char szNewPath[256], *pStr;
+	char szNewPath[256], szTmp[256], *pStr;
 	unsigned int nOffset;
 
 	if( !pDir->nNumItems )
@@ -409,22 +454,14 @@ int GUI_Ctrl_Dirview_Input( GUIControl_t *pCtrl, unsigned int nPadBtns )
 	}
 	else if( nPadBtns & PAD_CROSS ) 
 	{
-		if( pDir->pItems[ pDir->nSelectedItem ].flags & FLAG_DIRECTORY )
+		if( pDir->pItems[ pDir->nSelectedItem ].Item.flags & FLAG_DIRECTORY )
 		{
-			if( !strcmp( pDir->pItems[ pDir->nSelectedItem ].name, ".." ) )
+			if( !strcmp( pDir->pItems[ pDir->nSelectedItem ].Item.name, ".." ) )
 			{
-				nOffset = strlen(pDir->szPath) - 1;
-				strncpy( szNewPath, pDir->szPath, nOffset );
-				szNewPath[ nOffset ] = 0;
-
-				pStr = strrchr( szNewPath, '/' );
-
-				if( !pStr )
+				if( GUI_Ctrl_Dirview_Root(pCtrl) )
 				{
-					// path must be pfs0:, cdfs: or mc0: etc. and user attempts to switch
-					// to next higher level. take him back to the 'select device'
-					// screen.
-					// we can just re-init the control for that
+					// if browsing root directory and user attempts to go to next higher level,
+					// go back to device list screen
 					GUI_Ctrl_Dirview_Init(pCtrl);
 					GUI_Render();
 
@@ -434,18 +471,30 @@ int GUI_Ctrl_Dirview_Input( GUIControl_t *pCtrl, unsigned int nPadBtns )
 					return 1;
 				}
 
+				nOffset = strlen(pDir->szPath) - 1;
+				strncpy( szNewPath, pDir->szPath, nOffset );
+				szNewPath[ nOffset ] = 0;
+
+				if( !(pStr = strrchr( szNewPath, '/' )) )
+					return 1;
+
 				nOffset = pStr - szNewPath + 1;
 				
-				strncpy( pDir->szPath, szNewPath, nOffset );
-				pDir->szPath[ nOffset ] = 0;
+				strncpy( szTmp, szNewPath, nOffset );
+				szTmp[ nOffset ] = 0;
+
 			}
 			else
 			{
-				snprintf(	pDir->szPath, MAX_PATH, "%s%s/", pDir->szPath,
-							pDir->pItems[ pDir->nSelectedItem ].name );
+				snprintf(	szTmp, MAX_PATH, "%s%s", pDir->szPath,
+							pDir->pItems[ pDir->nSelectedItem ].Item.name );
+
+				if( szTmp[ strlen(szTmp) - 1 ] != '/' )
+					strncat( szTmp, "/", MAX_PATH );
+
 			}
 
-			GUI_Ctrl_Dirview_SetDir( pCtrl, pDir->szPath );
+			GUI_Ctrl_Dirview_SetDir( pCtrl, szTmp );
 			GUI_Render();
 
 			pCtrl->pParent->pfnCallback(	pCtrl->pParent, GUI_MSG_CONTROL,
@@ -463,13 +512,13 @@ int GUI_Ctrl_Dirview_Input( GUIControl_t *pCtrl, unsigned int nPadBtns )
 	}
 	else if( nPadBtns & PAD_SQUARE )
 	{
-		if( !strcmp( pDir->pItems[ pDir->nSelectedItem ].name, "." ) ||
-			!strcmp( pDir->pItems[ pDir->nSelectedItem ].name, ".." ) )
+		if( !strcmp( pDir->pItems[ pDir->nSelectedItem ].Item.name, "." ) ||
+			!strcmp( pDir->pItems[ pDir->nSelectedItem ].Item.name, ".." ) )
 			return 1;
 
-		if( pDir->pItems[ pDir->nSelectedItem ].flags & FLAG_MARKED )
+		if( pDir->pItems[ pDir->nSelectedItem ].Item.flags & FLAG_MARKED )
 		{
-			pDir->pItems[ pDir->nSelectedItem ].flags &= ~FLAG_MARKED;
+			pDir->pItems[ pDir->nSelectedItem ].Item.flags &= ~FLAG_MARKED;
 			
 			pCtrl->pParent->pfnCallback(	pCtrl->pParent, GUI_MSG_CONTROL,
 											MAKEPARAM( pCtrl->nID, GUI_NOT_DIRVIEW_UNMARK ),
@@ -477,7 +526,7 @@ int GUI_Ctrl_Dirview_Input( GUIControl_t *pCtrl, unsigned int nPadBtns )
 		}
 		else
 		{
-			pDir->pItems[ pDir->nSelectedItem ].flags |= FLAG_MARKED;
+			pDir->pItems[ pDir->nSelectedItem ].Item.flags |= FLAG_MARKED;
 
 			pCtrl->pParent->pfnCallback(	pCtrl->pParent, GUI_MSG_CONTROL,
 											MAKEPARAM( pCtrl->nID, GUI_NOT_DIRVIEW_MARK ),
@@ -508,7 +557,7 @@ const fileInfo_t *GUI_Ctrl_Dirview_GetSel( const GUIControl_t *pCtrl )
 {
 	GUICtrl_Dirview_t *pDir = pCtrl->pCtrl;
 
-	return &pDir->pItems[ pDir->nSelectedItem ];
+	return &pDir->pItems[ pDir->nSelectedItem ].Item;
 }
 
 unsigned int GUI_Ctrl_Dirview_NumMark( const GUIControl_t *pCtrl )
@@ -518,7 +567,7 @@ unsigned int GUI_Ctrl_Dirview_NumMark( const GUIControl_t *pCtrl )
 
 	for( i = 0, nNum = 0; i < pDir->nNumItems; i++ )
 	{
-		if( pDir->pItems[i].flags & FLAG_MARKED )
+		if( pDir->pItems[i].Item.flags & FLAG_MARKED )
 			nNum++;
 	}
 
@@ -535,10 +584,10 @@ const fileInfo_t *GUI_Ctrl_Dirview_GetMarked( const GUIControl_t *pCtrl, unsigne
 
 	for( i = 0, nNum = 0; i < pDir->nNumItems; i++ )
 	{
-		if( pDir->pItems[i].flags & FLAG_MARKED )
+		if( pDir->pItems[i].Item.flags & FLAG_MARKED )
 		{
 			if( nNum == n )
-				return &pDir->pItems[i];
+				return &pDir->pItems[i].Item;
 
 			nNum++;
 		}
@@ -556,9 +605,9 @@ void GUI_Ctrl_Dirview_SetMarked( const GUIControl_t *pCtrl, unsigned int nIndex,
 		return;
 
 	if( bMarked )
-		pDir->pItems[nIndex].flags |= FLAG_MARKED;
+		pDir->pItems[nIndex].Item.flags |= FLAG_MARKED;
 	else
-		pDir->pItems[nIndex].flags &= ~FLAG_MARKED;
+		pDir->pItems[nIndex].Item.flags &= ~FLAG_MARKED;
 }
 
 void GUI_Ctrl_Dirview_SetFilter( GUIControl_t *pCtrl, const char *pFilter )
@@ -598,7 +647,7 @@ const fileInfo_t *GUI_Ctrl_Dirview_GetItem( const GUIControl_t *pCtrl, unsigned 
 	if( nIndex >= pDir->nNumItems )
 		return NULL;
 
-	return &pDir->pItems[nIndex];
+	return &pDir->pItems[nIndex].Item;
 }
 
 void GUI_Ctrl_Dirview_Sort( GUIControl_t *pCtrl, int nSortFunc )
@@ -608,15 +657,99 @@ void GUI_Ctrl_Dirview_Sort( GUIControl_t *pCtrl, int nSortFunc )
 	switch(nSortFunc)
 	{
 		case GUI_SORT_NAME:
-			qsort( pDir->pItems, pDir->nNumItems, sizeof(fileInfo_t), SortPanelByName );
+			qsort( pDir->pItems, pDir->nNumItems, sizeof(GUIDVItem_t), SortPanelByName );
 			break;
 
 		case GUI_SORT_SIZE:
-			qsort( pDir->pItems, pDir->nNumItems, sizeof(fileInfo_t), SortPanelBySize );
+			qsort( pDir->pItems, pDir->nNumItems, sizeof(GUIDVItem_t), SortPanelBySize );
 			break;
 
 		case GUI_SORT_TYPE:
-			qsort( pDir->pItems, pDir->nNumItems, sizeof(fileInfo_t), SortPanelByType );
+			qsort( pDir->pItems, pDir->nNumItems, sizeof(GUIDVItem_t), SortPanelByType );
 			break;
 	}
+}
+
+int GUI_Ctrl_Dirview_SortPanelByName( const void *a, const void *b )
+{
+	fileInfo_t *p1, *p2;
+
+	p1 = &((GUIDVItem_t*)a)->Item;
+	p2 = &((GUIDVItem_t*)b)->Item;
+
+	if( (p1->flags & FLAG_DIRECTORY) && !(p2->flags & FLAG_DIRECTORY) )
+		return -1;
+	else if( !(p1->flags & FLAG_DIRECTORY) && (p2->flags & FLAG_DIRECTORY) )
+		return 1;
+
+	return strcmp( p1->name, p2->name );
+}
+
+int GUI_Ctrl_Dirview_SortPanelBySize( const void *a, const void *b )
+{
+	fileInfo_t *p1, *p2;
+
+	p1 = &((GUIDVItem_t*)a)->Item;
+	p2 = &((GUIDVItem_t*)b)->Item;
+
+	if( (p1->flags & FLAG_DIRECTORY) && !(p2->flags & FLAG_DIRECTORY) )
+		return -1;
+	else if( !(p1->flags & FLAG_DIRECTORY) && (p2->flags & FLAG_DIRECTORY) )
+		return 1;
+
+	return ( p1->size - p2->size );
+}
+
+int GUI_Ctrl_Dirview_SortPanelByType( const void *a, const void *b )
+{
+	fileInfo_t *p1, *p2;
+	char *ext1, *ext2;
+
+	p1 = &((GUIDVItem_t*)a)->Item;
+	p2 = &((GUIDVItem_t*)b)->Item;
+
+	if( (p1->flags & FLAG_DIRECTORY) && !(p2->flags & FLAG_DIRECTORY) )
+		return -1;
+	else if( !(p1->flags & FLAG_DIRECTORY) && (p2->flags & FLAG_DIRECTORY) )
+		return 1;
+
+	// grab the file extensions
+	ext1 = strrchr( p1->name, '.' );
+	ext2 = strrchr( p2->name, '.' );
+
+	if( !ext1 && !ext2 )
+		return 0;
+
+	if( !ext1 )
+		return -1;
+
+	if( !ext2 )
+		return 1;
+
+	// skip dot
+	ext1++;
+	ext2++;
+
+	return strcmp( ext1, ext2 );
+}
+
+int GUI_Ctrl_Dirview_Root( const GUIControl_t *pCtrl )
+{
+	unsigned int i;
+	const GUICtrl_Dirview_t	*pDir = pCtrl->pCtrl;
+
+	if( IsPartitionRoot(pDir->szPath) )
+		return 1;
+
+	if( !strcmp( pDir->szPath, "cdfs:/" ) || !strcmp( pDir->szPath, "mc0:/" ) ||
+		!strcmp( pDir->szPath, "mc1:/" )  || !strcmp( pDir->szPath, "mass:/" ) )
+		return 1;
+
+	for( i = 0; i < SMB_GetNumShares(); i++ )
+	{
+		if( !strcmp( pDir->szPath, SMB_GetShare(i)->pSharePath ) )
+			return 1;
+	}
+
+	return 0;
 }

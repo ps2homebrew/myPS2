@@ -44,7 +44,8 @@ typedef enum {
 	DT_HDD,
 	DT_MC,
 	DT_USB,
-	DT_HOST
+	DT_HOST,
+	DT_SMB_SHARE
 } deviceType_e;
 
 typedef struct {

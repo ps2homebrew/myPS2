@@ -57,7 +57,7 @@ MA  02110-1301, USA.
 
 int main( int argc, char *argv[] )
 {
-	int		nRet;
+	int		nRet, nTimeOffset;
 	int		bSafeMode		= 0;
 
 	char	szBootPart[MAX_PATH];
@@ -102,7 +102,6 @@ int main( int argc, char *argv[] )
 
 	loadModules( argv[0] );
 
-	tnTimeInit();
 	GP_Init();
 	MC_Init();
 	HDD_Init();
@@ -139,17 +138,25 @@ int main( int argc, char *argv[] )
 	// load system config
 	SC_LoadConfig(bSafeMode);
 
+	// init ps2time library
+	nTimeOffset = SC_GetValueForKey_Int( "time_timezone", NULL );
+	if( SC_GetValueForKey_Int( "time_dst", NULL ) )
+		nTimeOffset += 60;
+
+	ps2time_init();
+	ps2time_setTimezone( nTimeOffset );
+
 	// mount partitions in system config mount list
 	Bootscreen_printf("\tMounting partitions in mountlist: ");
 	nRet = HDD_MountList();
 	Bootscreen_printf("%i Errors\n", nRet);
-
-	// cdReadClock
-	cdInit(CDVD_INIT_NOCHECK);
 	
 	// initialize network
 	NET_Init( argv[0] );
 	FTP_Init();
+
+	// init libsmb
+	SMB_Init();
 
 	// init the user interface
 	GUI_Init();
@@ -776,7 +783,7 @@ int HDD_NumMounted( void )
 }
 
 //
-// HDD_GetPartName - Finds Partition from Mountpoint
+// HDD_GetPartName - Finds Partition Name from Mountpoint
 //
 
 const char *HDD_GetPartition( const char *lpMountPoint )
@@ -784,10 +791,10 @@ const char *HDD_GetPartition( const char *lpMountPoint )
 	int	i;
 	char szStr[MAX_PATH + 1], *pStr;
 
-	if(!strcmp( lpMountPoint, "pfs0:" ))
+	if(!strcmp( lpMountPoint, "pfs0:" ) || !strcmp( lpMountPoint, "pfs0:/"))
 		return "hdd0:+MYPS2";
 
-	if(!strcmp( lpMountPoint, "pfs1:" ))
+	if(!strcmp( lpMountPoint, "pfs1:" ) || !strcmp( lpMountPoint, "pfs1:/"))
 		return SC_GetValueForKey_Str( "hdd_boot_part", NULL );
 
 	strncpy( szStr, lpMountPoint, MAX_PATH );
@@ -1058,6 +1065,21 @@ void NET_Init( const char *path )
 	}
 #endif
 
+	// setup DNS server address
+	Bootscreen_printf("\tInitializing DNS: ");
+
+	SC_GetValueForKey_Str( "net_dns", string );
+	ret = dnsInit( string );
+	if( ret == 0 ) {
+#ifdef _DEBUG
+		printf("NET_Init: failed to initialize DNS!\n");
+#endif
+		Bootscreen_printf("^2FAILED\n");
+	}
+	else {
+		Bootscreen_printf("^1OK\n");
+	}
+
 	// load ps2ips.irx module (rpc server for ps2ip)
 	Bootscreen_printf("\tLoading PS2IPS module: ");
 
@@ -1082,21 +1104,6 @@ void NET_Init( const char *path )
 #endif
 		Bootscreen_printf("^2FAILED\n");
 		return;
-	}
-	else {
-		Bootscreen_printf("^1OK\n");
-	}
-
-	// setup DNS server address
-	Bootscreen_printf("\tInitializing DNS: ");
-
-	SC_GetValueForKey_Str( "net_dns", string );
-	ret = dnsInit( string );
-	if( ret == 0 ) {
-#ifdef _DEBUG
-		printf("NET_Init: failed to initialize DNS!\n");
-#endif
-		Bootscreen_printf("^2FAILED\n");
 	}
 	else {
 		Bootscreen_printf("^1OK\n");
@@ -1147,7 +1154,7 @@ void FTP_Init( void )
 	if( !NET_Available() )
 		return;
 
-	if( !SC_GetValueForKey_Int( "ftp_daemon", NULL ) )
+	if( !SC_GetValueForKey_Int( "ftp_enable", NULL ) )
 		return;
 
 	i = 0;

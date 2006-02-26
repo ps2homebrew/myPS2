@@ -62,6 +62,8 @@ unsigned int GUI_CB_Main( GUIMenu_t *lpGUIMenu, unsigned int nGUIMsg, unsigned i
 unsigned int GUI_CB_MyPictures( GUIMenu_t *lpGUIMenu, unsigned int nGUIMsg,
 								unsigned int nCtrlParam, unsigned int nOther );
 
+void	MyPictures_Init( void );
+int		BrowsingRoot( const char *lpPath );
 void	SetBrowseDir( const char *pDirPath );
 void	RefreshPanel( void );
 int		SortPanelByName( const void *a, const void *b );
@@ -181,6 +183,12 @@ int		RadioSortLC( const void *a, const void *b );
 void	LoadRadioBookmarks( void );
 void	FreeRadioBookmarks( void );
 void	RefreshBookmarkList( void );
+
+/////////////////////////////////////////////////
+// GUI_M_Samba
+
+unsigned int GUI_CB_Samba( GUIMenu_t *lpGUIMenu, unsigned int nGUIMsg,
+						   unsigned int nCtrlParam, unsigned int nOther );
 
 /////////////////////////////////////////////////
 // GUI_M_Settings

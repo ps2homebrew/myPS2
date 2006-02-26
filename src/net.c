@@ -34,6 +34,8 @@ MA  02110-1301, USA.
 #include <stdio.h>
 #include <ps2ip.h>
 #include <net.h>
+#include <misc.h>
+#include <loadfile.h>
 
 //
 // HttpDownload -  Attempts to download a file off an HTTP server.
@@ -336,12 +338,6 @@ int TokenizeURL( const char *pUrl, char *pHost, char *pFileName, int *pPort )
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
-// copied from ps2sdksrc/iop/tcpip/dns/
-
-t_dnsCache			cacheHead;			// fixme: thread
-struct sockaddr_in	nameServerAddr;
-u8					packetBuffer[2048]; // should be plenty!
-int					currentId = 1;
 
 //
 // dnsInit - Needs to be called with address of DNS server
@@ -351,290 +347,24 @@ int					currentId = 1;
 int dnsInit( const char *dns_addr )
 {
 	u32 a;
-
-	cacheHead.next			= NULL;
-	cacheHead.hostName		= "";
-	cacheHead.ipAddr.s_addr	= 0;
-	cacheHead.rv			= 0;
-
-	memset( &nameServerAddr, 0, sizeof(struct sockaddr_in) );
-
-	nameServerAddr.sin_family		= AF_INET;
-	nameServerAddr.sin_port			= htons(NAMESERVER_PORT);
+	int nSizeArg, nRet, irx_ret;
 
 	a = inet_addr( dns_addr );
 	if( a == INADDR_NONE ) {
-#ifdef _DEBUG
 		printf("dnsInit : %s is not a valid address!\n", dns_addr);
-#endif
 		return 0;
 	}
 
-	nameServerAddr.sin_addr.s_addr = a;
+	// load dns.irx
+	nSizeArg	= strlen(dns_addr) + 1;
+	nRet		= SifExecModuleBuffer( &dns_irx, size_dns_irx, nSizeArg, dns_addr, &irx_ret );
+
+	if( nRet < 0 ) {
+		printf("dnsInit : Failed to initialize dns irx module!\n");
+		return 0;
+	}
+
 	return 1;
-}
-
-void dnsSetNameserverAddress(struct in_addr *addr)
-{
-	memcpy(&nameServerAddr.sin_addr, addr, sizeof(struct in_addr));
-}
-
-int gethostbyname(char *name, struct in_addr *ip)
-{
-	t_dnsCache *cached = dnsCacheFind(name);
-	int pktSize, sockFd, pos = 0, rv;
-	t_dnsCache *newNode;
-
-	memset(ip, 0, sizeof(struct in_addr));
-
-	// Is the host already in the cache?
-	if(cached != NULL)
-	{
-#ifdef DEBUG
-		printf("host (%s) found in cache!\n", name);
-#endif
-		ip->s_addr = cached->ipAddr.s_addr;
-		return cached->rv;
-	}
-
-	// prepare the query packet
-	pktSize = dnsPrepareQueryPacket(&packetBuffer[2], name);
-
-	// connect to dns server via TCP (UDP is standard, but TCP is easier :))
-	sockFd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if(sockFd < 0)
-		return DNS_ERROR_CONNECT;
-
-	if(connect(sockFd, (struct sockaddr *)&nameServerAddr, sizeof(struct sockaddr)) < 0)
-	{
-		disconnect(sockFd);
-		return DNS_ERROR_CONNECT;
-	}
-
-#ifdef DEBUG
-	printf("connected to nameserver!\n");
-#endif
-
-	// Send our packet - first send packet size
-	*(u16 *)packetBuffer = htons(pktSize);
-	pktSize += 2;
-
-	while(pktSize)
-	{
-		int sent = send(sockFd, &packetBuffer[pos], pktSize, 0);
-		
-		if(sent < 0)
-		{
-			disconnect(sockFd);
-			return DNS_ERROR_CONNECT;
-		}
-
-		pos += sent;
-		pktSize -= sent;
-	}
-	
-#ifdef DEBUG
-	printf("packet sent!\n");
-#endif
-
-	rv = recv(sockFd, &packetBuffer[pktSize], sizeof(packetBuffer), 0);
-	if(rv < 0)
-	{
-			disconnect(sockFd);
-			return DNS_ERROR_CONNECT;
-	}
-
-	pktSize = ntohs(*(u16 *)packetBuffer);
-
-	// should do proper loop to get all data if the entire packet didnt make it
-	// through the first time.. maybe later :)
-	disconnect(sockFd);
-	if(pktSize != (rv - 2))
-			return DNS_ERROR_CONNECT;
-
-#ifdef DEBUG
-	printf("received response! len = %d\n", pktSize);
-#endif
-
-	rv = dnsParseResponsePacket(&packetBuffer[2], pktSize, ip);
-#ifdef DEBUG
-	{
-		u8 *ptr = (u8 *)ip;
-		printf("resolved ip: %d.%d.%d.%d\n", ptr[0], ptr[1], ptr[2], ptr[3]);
-	}
-#endif
-
-	newNode = (t_dnsCache *)malloc(sizeof(t_dnsCache));
-	if(!newNode)
-		return rv;
-
-	newNode->ipAddr.s_addr = ip->s_addr;
-	newNode->rv = rv;
-	newNode->hostName = malloc(strlen(name) + 1);
-	if(!newNode->hostName)
-	{
-		free(newNode);
-		return rv;
-	}
-
-	strcpy(newNode->hostName, name);
-	dnsCacheAdd(newNode);
-
-	return rv;
-}
-
-int dnsPrepareQueryPacket(u8 *packetBuf, char *hostName)
-{
-	t_dnsMessageHeader *hdr = (t_dnsMessageHeader *)packetBuf;
-	int currLen, pktSize = 0, left = strlen(hostName), i;
-
-	memset(hdr, 0, sizeof(t_dnsMessageHeader));
-	hdr->id = currentId++;
-	hdr->flags = 0x100; // standard query, recursion desired
-	hdr->QDCOUNT = 1;
-
-	// convert header to network byte order
-	for(i = 0; i < sizeof(t_dnsMessageHeader); i += 2)
-		*(u16 *)&packetBuf[i] = htons(*(u16 *)&packetBuf[i]);
-
-	pktSize += sizeof(t_dnsMessageHeader);
-	packetBuf += sizeof(t_dnsMessageHeader);
-
-	// Copy over QNAME
-	while(left > 0)
-	{
-		for(currLen = 0; (hostName[currLen] != '.') && (hostName[currLen] != '\0'); currLen++);
-		*(packetBuf++) = currLen;
-		memcpy(packetBuf, hostName, currLen);
-
-		hostName += currLen + 1;
-		packetBuf += currLen;
-		pktSize += currLen + 1;
-		left -= currLen + 1;
-	}
-
-	// terminate QNAME
-	*(packetBuf++) = '\0';
-	pktSize++;
-
-	// Set type = TYPE_A, class = CLASS_IN (the cheat way :P)
-	*(packetBuf++) = 0;
-	*(packetBuf++) = 1;
-	*(packetBuf++) = 0;
-	*(packetBuf++) = 1;
-	pktSize += 4;
-
-	return pktSize;
-}
-
-int getLabelLength(u8 *buffer)
-{
-	int len = 0;
-
-	// if "compressed" label, simply skip 2 bytes
-	if(buffer[len] == 0xC0)
-		len += 2;
-	else
-	{
-		// otherwise skip past null terminated string
-		while(buffer[len] != '\0')
-			len++;
-
-		len++;
-	}
-
-	return len;
-}
-
-int getResourceRecordLength(u8 *buffer)
-{
-	int len = 0;
-	u32 rdLen;
-
-	len += getLabelLength(buffer);
-	// skip to RDLENGTH
-	len += 8;
-	memcpy(&rdLen, &buffer[len], 2);
-	rdLen = ntohs(rdLen);
-	len += 2 + rdLen;
-		
-	return len;
-}
-
-int dnsParseResponsePacket(u8 *packetBuf, int pktSize, struct in_addr *ip)
-{
-	t_dnsMessageHeader *hdr = (t_dnsMessageHeader *)packetBuf;
-	t_dnsResourceRecordHostAddr rrBody;
-	u8 retCode;
-	int pos, i;
-
-	// convert header to host byte order and make sure everything is in order
-	for(i = 0; i < sizeof(t_dnsMessageHeader); i += 2)
-		*(u16 *)&packetBuf[i] = ntohs(*(u16 *)&packetBuf[i]);
-
-	// make sure this is a response
-	if(!(hdr->flags & 0x8000))
-		return DNS_ERROR_PARSE;
-
-	// make sure message isnt truncated
-	if(hdr->flags & 0x200)
-		return DNS_ERROR_PARSE;
-
-	retCode = hdr->flags & 0x0F;
-	if(retCode == RCODE_nameError)
-		return DNS_ERROR_HOST_NOT_FOUND;
-	else if(retCode != RCODE_noError)
-		return DNS_ERROR_PARSE;
-
-	// skip past original query to resource records
-	pos = sizeof(t_dnsMessageHeader);
-	while(packetBuf[pos] != '\0')
-		pos++;
-	pos += 5;
-
-	// go through all resource records looking for host address type
-	while(pos < pktSize)
-	{
-		memcpy(&rrBody, &packetBuf[pos + getLabelLength(&packetBuf[pos])], sizeof(t_dnsResourceRecordHostAddr));
-
-		// keep searching till we find the right resource record (if any)
-		if(	(ntohs(rrBody.type) != TYPE_A) ||
-			(ntohs(rrBody.class) != CLASS_IN) ||
-			(ntohs(rrBody.rdlength) != 4))
-		{
-			pos += getResourceRecordLength(&packetBuf[pos]);
-			continue;
-		}
-
-		memcpy(ip, rrBody.rdata, 4);
-		return 0;
-	}
-
-	return DNS_ERROR_PARSE;
-}
-
-void dnsCacheAdd(t_dnsCache *entry)
-{
-	t_dnsCache *last = &cacheHead;
-	
-	while(last->next != NULL)
-		last = last->next;
-
-	last->next = entry;
-	entry->next = NULL;
-}
-
-t_dnsCache *dnsCacheFind(char *hostName)
-{
-	t_dnsCache *current;
-
-	for(current = cacheHead.next; current != NULL; current = current->next)
-	{
-		if(!strcasecmp(current->hostName, hostName))
-			return current;
-	}
-
-	return NULL;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////

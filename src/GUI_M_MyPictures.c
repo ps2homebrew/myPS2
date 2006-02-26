@@ -26,21 +26,17 @@ MA  02110-1301, USA.
 #include <Imgscale.h>
 #include <SysConf.h>
 
-#define ID_BROWSE_HDD		100
-#define ID_BROWSE_CD		101
-#define ID_BROWSE_USB		102
 #define ID_CACHE_IMAGES		103
 #define ID_SORT_BY_NAME		104
 #define ID_SORT_BY_SIZE		105
 #define ID_SORT_BY_TYPE		106
-//#define ID_GO_BACK			107
 #define ID_THUMBNAIL_PANEL	108
 #define ID_IMAGE_ERROR		109
 #define ID_IMAGE_DIR		110
 
-static char	szCurDir[ MAX_PATH + 1 ];
-static fileInfo_t fileInfo[ MAX_DIR_FILES ];
-static unsigned int nNumFiles;
+static char					szCurDir[ MAX_PATH + 1 ]	= {0};
+static fileInfo_t			fileInfo[ MAX_DIR_FILES ];
+static unsigned int			nNumFiles;
 static const GUIMenuImage_t	*pErrImage, *pDirImage;
 
 unsigned int GUI_CB_MyPictures( GUIMenu_t *lpGUIMenu, unsigned int nGUIMsg,
@@ -60,8 +56,9 @@ unsigned int GUI_CB_MyPictures( GUIMenu_t *lpGUIMenu, unsigned int nGUIMsg,
 			pDirImage = GUI_MenuGetImage( lpGUIMenu,
 				((GUICtrl_Image_t*)GUI_ControlByID(ID_IMAGE_DIR)->pCtrl)->nTexture );
 
-			GUI_CtrlSetEnable( ID_BROWSE_USB, USB_Available() );
-			GUI_CtrlSetEnable( ID_BROWSE_HDD, HDD_Available() );
+			if( !szCurDir[0] )
+				MyPictures_Init();
+
 			break;
 
 		case GUI_MSG_CLOSE:
@@ -71,18 +68,6 @@ unsigned int GUI_CB_MyPictures( GUIMenu_t *lpGUIMenu, unsigned int nGUIMsg,
 		case GUI_MSG_CONTROL:
 			switch( LOWORD(nCtrlParam) )
 			{
-				case ID_BROWSE_HDD:
-					SetBrowseDir( "hdd" );
-					break;
-
-				case ID_BROWSE_CD:
-					SetBrowseDir( "cdfs:/" );
-					break;
-
-				case ID_BROWSE_USB:
-					SetBrowseDir( "mass:/" );
-					break;
-
 				case ID_CACHE_IMAGES:
 					GUI_OpenDialog( GUI_MENU_DLGTHUMB, lpGUIMenu, 0 );
 					break;
@@ -119,6 +104,19 @@ unsigned int GUI_CB_MyPictures( GUIMenu_t *lpGUIMenu, unsigned int nGUIMsg,
 
 							pItem->pStr	= pFile->name;
 
+							// device list
+							if( !szCurDir[0] )
+							{
+								if( !strncmp( pFile->name, "pfs", 3 ) )
+								{
+									pItem->pStr = HDD_GetPartition(pFile->name);
+								}
+								else if( !strncmp( pFile->name, "smb", 3 ) )
+								{
+									pItem->pStr = SMB_GetShareNameByPath(pFile->name);
+								}
+							}
+
 							nRet = CreateThumbnail( pFile, szCurDir, &pItem->pTexture );
 							if( nRet == 0 )
 								pItem->pTexture = pErrImage->gsTexture;
@@ -127,12 +125,15 @@ unsigned int GUI_CB_MyPictures( GUIMenu_t *lpGUIMenu, unsigned int nGUIMsg,
 						case GUI_NOT_REMOVE:
 							pItem = (GUIThumbItem_t*) nOther;
 
-							if( pItem->pTexture != pErrImage->gsTexture &&
-								pItem->pTexture != pDirImage->gsTexture )
-								gsLib_texture_free( pItem->pTexture );
+							if( pItem->pTexture )
+							{
+								if( pItem->pTexture && pItem->pTexture != pErrImage->gsTexture &&
+									pItem->pTexture != pDirImage->gsTexture )
+									gsLib_texture_free( pItem->pTexture );
+							}
 
 							pItem->pTexture = NULL;
-							pItem->pStr	= NULL;
+							pItem->pStr		= NULL;
 							break;
 
 						case GUI_NOT_THUMB:
@@ -143,22 +144,33 @@ unsigned int GUI_CB_MyPictures( GUIMenu_t *lpGUIMenu, unsigned int nGUIMsg,
 							{
 								if( !strcmp( pFile->name, ".." ) )
 								{
-									nOffset = strlen(szCurDir) - 1;
-									strncpy( szNewPath, szCurDir, nOffset );
-									szNewPath[ nOffset ] = 0;
+									if( BrowsingRoot(szCurDir) )
+									{
+										MyPictures_Init();
+										GUI_Render();
+										return 0;
+									}
+									else
+									{
+										nOffset = strlen(szCurDir) - 1;
+										strncpy( szNewPath, szCurDir, nOffset );
+										szNewPath[ nOffset ] = 0;
 
-									if( !(pStr = strrchr( szNewPath, '/' )) )
-										break;
+										if( !(pStr = strrchr( szNewPath, '/' )) )
+											break;
 
-									nOffset = pStr - szNewPath + 1;
-									strncpy( szNewPath, szCurDir, nOffset );
-									szNewPath[ nOffset ] = 0;
+										nOffset = pStr - szNewPath + 1;
+										strncpy( szNewPath, szCurDir, nOffset );
+										szNewPath[ nOffset ] = 0;
+									}
 								}
 								else
 								{
-									strcpy( szNewPath, szCurDir );
-									strncat( szNewPath, pFile->name, MAX_PATH );
-									strncat( szNewPath, "/", MAX_PATH );
+									snprintf( szNewPath, MAX_PATH, "%s%s", szCurDir,
+											  pFile->name );
+
+									if( szNewPath[ strlen(szNewPath) - 1 ] != '/' )
+										strncat( szNewPath, "/", MAX_PATH );
 								}
 
 								SetBrowseDir( szNewPath );
@@ -185,41 +197,40 @@ unsigned int GUI_CB_MyPictures( GUIMenu_t *lpGUIMenu, unsigned int nGUIMsg,
 	return 0;
 }
 
-void SetBrowseDir( const char *pDirPath )
+void MyPictures_Init( void )
 {
-	int nCount, i;
-	const char *pMnt;
+	int					nHDD, i;
+	char				szPfs[32];
+	const char			*pMnt;
+	const smbShare_t	*smbShare;
 
-	// stupid hack to support other partitions
-	if( !strcmp( "hdd", pDirPath ) )
+	szCurDir[0]	= 0;
+	nNumFiles	= 0;
+
+	GUI_Ctrl_ThumbnailPanel_Clean( GUI_ControlByID(ID_THUMBNAIL_PANEL) );
+
+	if( (nHDD = HDD_Available()) )
 	{
-		int		nRet;
-		char	pfs[32];
-
-		szCurDir[0] = 0;
-		nNumFiles	= 0;
-
-		nRet = HDD_Available();
-
-		if( nRet == HDD_AVAIL )
+		if( nHDD == HDD_AVAIL )
 		{
-			strcpy( fileInfo[0].name, "pfs0:" );
+			fileInfo[ nNumFiles ].flags		= FLAG_DIRECTORY;
+			fileInfo[ nNumFiles ].size		= 0;
 
-			fileInfo[0].flags	= FLAG_DIRECTORY;
-			fileInfo[0].size	= 0;
+			strcpy( fileInfo[ nNumFiles ].name, "pfs0:/" );
 
 			nNumFiles++;
 
+			// add boot partition
 			if( GetBootMode() == BOOT_HDD )
 			{
 				if( (pMnt = BootMntPoint()) )
 				{
 					if( strcmp( pMnt, "pfs0" ) )
 					{
-						strcpy( fileInfo[1].name, "pfs1:" );
+						fileInfo[ nNumFiles ].flags		= FLAG_DIRECTORY;
+						fileInfo[ nNumFiles ].size		= 0;
 
-						fileInfo[1].flags	= FLAG_DIRECTORY;
-						fileInfo[1].size	= 0;
+						strcpy( fileInfo[ nNumFiles ].name, "pfs1:/" );
 
 						nNumFiles++;
 					}
@@ -227,32 +238,112 @@ void SetBrowseDir( const char *pDirPath )
 			}
 		}
 
+		// add other mounted partitions to list
 		for( i = 0; i < HDD_NumMounted(); i++ )
 		{
-			snprintf( pfs, sizeof(pfs), "pfs%i:", i + 2 );
+			snprintf( szPfs, sizeof(szPfs), "pfs%i:/", i + 2 );
 
-			strcpy( fileInfo[ nNumFiles ].name, pfs );
+			fileInfo[ nNumFiles ].flags		= FLAG_DIRECTORY;
+			fileInfo[ nNumFiles ].size		= 0;
 
-			fileInfo[ nNumFiles ].flags	= FLAG_DIRECTORY;
-			fileInfo[ nNumFiles ].size	= 0;
+			strcpy( fileInfo[ nNumFiles ].name, szPfs );
 
 			nNumFiles++;
 		}
-
-		nCount	= nNumFiles;
 	}
-	else
+
+	if( MC_Available(0) )
 	{
-		strncpy( szCurDir, pDirPath, MAX_PATH );
-		szCurDir[MAX_PATH] = 0;
+		fileInfo[ nNumFiles ].flags		= FLAG_DIRECTORY;
+		fileInfo[ nNumFiles ].size		= 0;
 
-		nCount		= DirGetContents( szCurDir, "jpg", fileInfo, MAX_DIR_FILES );
-		nNumFiles	= nCount;
+		strcpy( fileInfo[ nNumFiles ].name, "mc0:/" );
+
+		nNumFiles++;
 	}
+
+	if( MC_Available(1) )
+	{
+		fileInfo[ nNumFiles ].flags		= FLAG_DIRECTORY;
+		fileInfo[ nNumFiles ].size		= 0;
+
+		strcpy( fileInfo[ nNumFiles ].name, "mc1:/" );
+
+		nNumFiles++;
+	}
+
+	if( USB_Available() )
+	{
+		fileInfo[ nNumFiles ].flags		= FLAG_DIRECTORY;
+		fileInfo[ nNumFiles ].size		= 0;
+
+		strcpy( fileInfo[ nNumFiles ].name, "mass:/" );
+
+		nNumFiles++;
+	}
+
+	for( i = 0; i < SMB_GetNumShares(); i++ )
+	{
+		smbShare = SMB_GetShare(i);
+
+		fileInfo[ nNumFiles ].flags		= FLAG_DIRECTORY;
+		fileInfo[ nNumFiles ].size		= 0;
+
+		strcpy( fileInfo[ nNumFiles ].name, smbShare->pSharePath );
+
+		nNumFiles++;
+	}
+
+	fileInfo[ nNumFiles ].flags		= FLAG_DIRECTORY;
+	fileInfo[ nNumFiles ].size		= 0;
+
+	strcpy( fileInfo[ nNumFiles ].name, "cdfs:/" );
+
+	nNumFiles++;
+
+	for( i = 0; i < nNumFiles; i++ )
+		GUI_Ctrl_ThumbnailPanel_AddItem( GUI_ControlByID(ID_THUMBNAIL_PANEL), &fileInfo[i] );
+}
+
+int BrowsingRoot( const char *lpPath )
+{
+	unsigned int i;
+
+	if( IsPartitionRoot(lpPath) )
+		return 1;
+
+	if( !strcmp( lpPath, "cdfs:/" ) || !strcmp( lpPath, "mc0:/" ) ||
+		!strcmp( lpPath, "mc1:/" )  || !strcmp( lpPath, "mass:/" ) )
+		return 1;
+
+	for( i = 0; i < SMB_GetNumShares(); i++ )
+	{
+		if( !strcmp( lpPath, SMB_GetShare(i)->pSharePath ) )
+			return 1;
+	}
+
+	return 0;
+}
+
+
+void SetBrowseDir( const char *pDirPath )
+{
+	int nCount, i;
+
+	strncpy( szCurDir, pDirPath, MAX_PATH );
+	szCurDir[MAX_PATH] = 0;
+
+	fileInfo[0].flags	= FLAG_DIRECTORY;
+	fileInfo[0].size	= 0;
+
+	strcpy( fileInfo[0].name, ".." );
+
+	nCount		= DirGetContents( szCurDir, "jpg", &fileInfo[1], MAX_DIR_FILES - 1);
+	nNumFiles	= nCount + 1;
 
 	GUI_Ctrl_ThumbnailPanel_Clean( GUI_ControlByID(ID_THUMBNAIL_PANEL) );
 
-	for( i = 0; i < nCount; i++ )
+	for( i = 0; i < nNumFiles; i++ )
 		GUI_Ctrl_ThumbnailPanel_AddItem( GUI_ControlByID(ID_THUMBNAIL_PANEL), &fileInfo[i] );
 
 	GUI_Render();
@@ -343,7 +434,7 @@ int CreateThumbnail( const fileInfo_t *pFile, const char *pDir, GSTEXTURE **pTex
 	int			nWidth, nHeight;
 	float		fRatio;
 	u8			*pResData;
-	int			nRet;
+	int			nRet, nSize;
 
 	if( pFile->flags & FLAG_DIRECTORY )
 	{
@@ -363,21 +454,30 @@ int CreateThumbnail( const fileInfo_t *pFile, const char *pDir, GSTEXTURE **pTex
 	strcpy( pFilename, pDir );
 	strcat( pFilename, pFile->name );
 
-	if( (pRaw = (u8*) malloc( pFile->size )) == NULL )
-		return 0;
-
 	fh = FileOpen( pFilename, O_RDONLY );
-	if( fh.fh == -1 )
+	if( fh.fh < 0 )
 	{
 		free(pFilename);
-		free(pRaw);
 		return 0;
 	}
 
-	FileRead( fh, pRaw, pFile->size );
+	nSize = FileSeek( fh, 0, SEEK_END );
+	FileSeek( fh, 0, SEEK_SET );
+
+	if( !nSize )
+	{
+		free(pFilename);
+		return 0;
+	}
+
+	if( (pRaw = (u8*) malloc( nSize )) == NULL )
+		return 0;
+
+
+	FileRead( fh, pRaw, nSize );
 	FileClose( fh );
 
-	if( (pJpg = jpgOpenRAW( pRaw, pFile->size, JPG_WIDTH_FIX )) == NULL )
+	if( (pJpg = jpgOpenRAW( pRaw, nSize, JPG_WIDTH_FIX )) == NULL )
 	{
 		free(pFilename);
 		free(pRaw);

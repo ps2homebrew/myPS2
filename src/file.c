@@ -84,6 +84,10 @@ FHANDLE FileOpen( const char *filename, int mode )
 		handle.fh = fioOpen( filename, mode );
 		handle.dt = DT_HOST;
 	}
+	else if( !strncmp( filename, "smb:", c ) ) {
+		handle.fh = smbc_open( filename, mode, 0666 );
+		handle.dt = DT_SMB_SHARE;
+	}
 
 	return handle;
 }
@@ -110,6 +114,9 @@ int FileClose( FHANDLE handle )
 	}
 	else if( handle.dt == DT_HOST ) {
 		ret = fioClose( handle.fh );
+	}
+	else if( handle.dt == DT_SMB_SHARE ) {
+		ret = smbc_close( handle.fh );
 	}
 
 	return ret;
@@ -138,6 +145,9 @@ int FileRead( FHANDLE handle, void *buffer, int size )
 	else if( handle.dt == DT_HOST ) {
 		ret = fioRead( handle.fh, buffer, size );
 	}
+	else if( handle.dt == DT_SMB_SHARE ) {
+		ret = smbc_read( handle.fh, buffer, size );
+	}
 
 	return ret;
 }
@@ -165,6 +175,9 @@ int FileWrite( FHANDLE handle, void *buffer, int size )
 	else if( handle.dt == DT_HOST ) {
 		ret = fioWrite( handle.fh, buffer, size );
 	}
+	else if( handle.dt == DT_SMB_SHARE ) {
+		ret = smbc_write( handle.fh, buffer, size );
+	}
 
 	return ret;
 }
@@ -191,6 +204,9 @@ int FileSeek( FHANDLE handle, long offset, int whence )
 	}
 	else if( handle.dt == DT_HOST ) {
 		ret = fioLseek( handle.fh, offset, whence );
+	}
+	else if( handle.dt == DT_SMB_SHARE ) {
+		ret = smbc_lseek( handle.fh, offset, whence );
 	}
 
 	return ret;
@@ -278,6 +294,9 @@ int FileMkdir( const char *path )
 	else if( !strncmp( path, "mass:", c ) ) {
 		return fioMkdir( path );
 	}
+	else if( !strncmp( path, "smb:", c ) ) {
+		return smbc_mkdir( path, 0666 );
+	}
 
 	return -1;
 }
@@ -327,6 +346,9 @@ int FileRemove( const char *file )
 		fioRmdir( strDir );
 		return c;
 	}
+	else if( !strncmp( file, "smb:", c ) ) {
+		return smbc_unlink( file );
+	}
 
 	return -1;
 }
@@ -368,6 +390,9 @@ int FileRmdir( const char *path )
 
 		return fioRmdir( strDir );
 	}
+	else if( !strncmp( path, "smb:", c ) ) {
+		return smbc_unlink( path );
+	}
 
 	return -1;
 }
@@ -406,6 +431,10 @@ int FileRename( const char *src, const char *dst )
 		// TODO : usb renaming not implemented yet
 		printf("FileRename : Not implemented for USB!\n");
 		return -1;
+	}
+	else if( !strncmp( src, "smb:", c ) )
+	{
+		return smbc_rename( src, dst );
 	}
 
 	return -1;
@@ -478,6 +507,8 @@ int FileCopy( const char *pFileIn, const char *pFileOut,
 // The function returns the number of valid entries in the fileInfo
 // array.
 //
+// "." and ".." are not included in the list.
+//
 
 int DirGetContents( const char *path, const char *filter, fileInfo_t *fileInfo, int maxItems )
 {
@@ -487,13 +518,11 @@ int DirGetContents( const char *path, const char *filter, fileInfo_t *fileInfo, 
 	int		index	= 0;
 
 	if( !path || !fileInfo || !maxItems )
-		return 0;
+		return -1;
 
 	if( (ptr = strchr( path, '/' )) == NULL ) {
-#ifdef _DEBUG
 		printf("DirGetContents : Invalid Path (ptr = NULL)\n");
-#endif
-		return 0;
+		return -1;
 	}
 
 	c = ptr - path;
@@ -507,20 +536,11 @@ int DirGetContents( const char *path, const char *filter, fileInfo_t *fileInfo, 
 		struct TocEntry *tocEntries = (struct TocEntry*) malloc( sizeof(struct TocEntry) * maxItems );
 		
 		if( !tocEntries )
-		{
-#ifdef _DEBUG
-			printf("DirGetContents : malloc() failed (tocEntries = NULL)\n");
-#endif
-			return 0;
-		}
+			return -1;
 
 		CDVD_FlushCache();
 		numRead = CDVD_GetDir( ptr, NULL, CDVD_GET_FILES_AND_DIRS, tocEntries, maxItems, NULL );
 		CDVD_Stop();
-
-#ifdef _DEBUG
-		printf("CDVD_GetDir read %i items\n", numRead);
-#endif
 
 		index	= 0;
 		ptr		= NULL;
@@ -530,9 +550,11 @@ int DirGetContents( const char *path, const char *filter, fileInfo_t *fileInfo, 
 
 		for( i = 0; i < numRead; i++ )
 		{
-			// just in case
 			if( index >= maxItems )
 				break;
+
+			if( !strcmp( tocEntries[i].filename, ".." ) || !strcmp( tocEntries[i].filename, "." ) )
+				continue;
 
 			// check for filters
 			c = 1;
@@ -578,6 +600,9 @@ int DirGetContents( const char *path, const char *filter, fileInfo_t *fileInfo, 
 		int nRet;
 		iox_dirent_t dirEntry;
 
+		if( hDir < 0 )
+			return -1;
+
 		index	= 0;
 		ptr		= NULL;
 
@@ -588,11 +613,7 @@ int DirGetContents( const char *path, const char *filter, fileInfo_t *fileInfo, 
 			if( !(nRet = fileXioDread( hDir, &dirEntry )) )
 				break;
 
-			if(!strcmp( dirEntry.name, "." ))
-				continue;
-
-			// if browsing partition root, ignore ".."
-			if(!strcmp( dirEntry.name, ".." ) && IsPartitionRoot(path))
+			if(!strcmp( dirEntry.name, "." ) || !strcmp( dirEntry.name, ".."))
 				continue;
 
 			if( index >= maxItems )
@@ -668,7 +689,7 @@ int DirGetContents( const char *path, const char *filter, fileInfo_t *fileInfo, 
 			if( index >= maxItems )
 				break;
 
-			if( !strcmp( mcEntries[i].name, "." ) )
+			if( !strcmp( mcEntries[i].name, "." ) || !strcmp( mcEntries[i].name, "..") )
 				continue;
 
 			if( mcEntries[i].attrFile & MC_ATTR_SUBDIR )
@@ -728,7 +749,7 @@ int DirGetContents( const char *path, const char *filter, fileInfo_t *fileInfo, 
 		// loop through all entries in directory
 		while( nRet > 0 ) {
 
-			if(!strcmp( dirEntry.name, "." )) {
+			if(!strcmp( dirEntry.name, "." ) || !strcmp( dirEntry.name, "..")) {
 				nRet = usb_mass_getNextDirentry(&dirEntry);
 				continue;
 			}
@@ -781,6 +802,70 @@ int DirGetContents( const char *path, const char *filter, fileInfo_t *fileInfo, 
 
 		if( ptr )
 			free(ptr);
+	}
+	else if( !strncmp( path, "smb", 3 ) )
+	{
+		// read from a samba share
+		int hDir = smbc_opendir( path );
+		const struct smbc_dirent *dirEntry;
+
+		if( hDir < 0 )
+			return -1;
+
+		index	= 0;
+		ptr		= NULL;
+
+		if( filter )
+			ptr = (char*) malloc( strlen(filter) + 1 );
+
+		while( (dirEntry = smbc_readdir( hDir )) != NULL )
+		{
+			if(!strcmp( dirEntry->name, "." ) || !strcmp( dirEntry->name, ".."))
+				continue;
+
+			if( index >= maxItems )
+				break;
+
+			if( dirEntry->smbc_type == SMBC_DIR )
+				fileInfo[index].flags = FLAG_DIRECTORY;
+			else
+				fileInfo[index].flags = 0;
+
+			// check for filters
+			c = 1;
+
+			if( filter && !(fileInfo[index].flags & FLAG_DIRECTORY) )
+			{
+				strcpy( ptr, filter );
+
+				c = 0;
+				char *token = strtok( ptr, " " );
+
+				while( token ) {
+					// found matching extension
+					if( CmpFileExtension( dirEntry->name, token ) ) {
+						c = 1;
+						break;
+					}
+
+					token = strtok( NULL, " " );
+				}
+			}
+			
+			if( c == 1 )
+			{
+				strncpy( fileInfo[index].name, dirEntry->name, sizeof(fileInfo[index].name) );
+				fileInfo[index].size = 0; // fixme
+
+				index++;
+			}
+
+		};
+
+		if( ptr )
+			free(ptr);
+
+		smbc_closedir( hDir );
 	}
 
 	return index;
@@ -950,9 +1035,6 @@ u64 DirGetSize( const char *path, u64 reserved )
 
 	for( i = 0; i < numFiles; i++ )
 	{
-		if( !strcmp( pFileInfo[i].name, "." ) || !strcmp( pFileInfo[i].name, ".." ) )
-			continue;
-
 		if( pFileInfo[i].flags & FLAG_DIRECTORY )
 		{
 			// build new path
@@ -996,9 +1078,6 @@ void DirRemove( const char *path )
 
 	for( i = 0; i < numFiles; i++ )
 	{
-		if( !strcmp( pFileInfo[i].name, "." ) || !strcmp( pFileInfo[i].name, ".." ) )
-			continue;
-
 		if( pFileInfo[i].flags & FLAG_DIRECTORY )
 		{
 			// build new path
@@ -1087,9 +1166,6 @@ int DirCopy( const char *pDirIn, const char *pDirOut,
 	
 	for( i = 0; i < numFiles; i++ )
 	{
-		if( !strcmp( pFileInfo[i].name, ".." ) || !strcmp( pFileInfo[i].name, "." ) )
-			continue;
-
 		if( pFileInfo[i].flags & FLAG_DIRECTORY )
 		{
 			// build new in path

@@ -210,6 +210,10 @@ SOURCE=.\GUI_M_Radio.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\GUI_M_Samba.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\GUI_M_Settings.c
 # End Source File
 # Begin Source File
@@ -242,6 +246,10 @@ SOURCE=.\net.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\samba.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\scheduler.c
 # End Source File
 # Begin Source File
@@ -251,10 +259,6 @@ SOURCE=.\sjpcm_rpc.c
 # Begin Source File
 
 SOURCE=.\sysconf.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\timer.c
 # End Source File
 # End Group
 # Begin Group "Header Files"
@@ -319,6 +323,10 @@ SOURCE=.\mp3.h
 # Begin Source File
 
 SOURCE=.\net.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\samba.h
 # End Source File
 # Begin Source File
 

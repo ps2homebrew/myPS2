@@ -12,22 +12,23 @@ EE_OBJS =	main.o GUI.o GUI_Load.o	GUI_Ctrl_Button.o GUI_Ctrl_Combo.o GUI_Ctrl_Di
 		GUI_M_DlgKeyboard.o GUI_M_DlgMsgBox.o GUI_M_DlgPartition.o GUI_M_DlgYesNo.o	\
 		GUI_M_Language.o GUI_M_Main.o GUI_M_MyFiles.o GUI_M_MyMusic.o			\
 		GUI_M_MyPictures.o GUI_M_MyPrograms.o GUI_M_Network.o GUI_M_Partitions.o	\
-		GUI_M_Radio.o GUI_M_Settings.o GUI_M_Skins.o GUI_M_View.o gamepad.o elf.o	\
-		timer.o	imgscale.o file.o sysconf.o mp3.o scheduler.o net.o bootscreen.o	\
-		mass_rpc.o cdvd_rpc.o charset.o	sjpcm_rpc.o loader.o usb_mass.o	iomanx.o	\
-		filexio.o ps2dev9.o ps2atad.o ps2hdd.o ps2fs.o poweroff.o cdvd.o ps2ip.o	\
-		ps2ips.o ps2smap.o ps2ftpd.o sjpcm.o boot_bkg.o	boot_font.o boot_dat.o
+		GUI_M_Radio.o GUI_M_Samba.o GUI_M_Settings.o GUI_M_Skins.o GUI_M_View.o		\
+		gamepad.o elf.o	imgscale.o file.o sysconf.o mp3.o scheduler.o net.o		\
+		bootscreen.o mass_rpc.o cdvd_rpc.o charset.o sjpcm_rpc.o samba.o loader.o	\
+		usb_mass.o iomanx.o filexio.o ps2dev9.o ps2atad.o ps2hdd.o ps2fs.o poweroff.o	\
+		cdvd.o ps2ip.o ps2ips.o ps2smap.o ps2ftpd.o sjpcm.o dns.o boot_bkg.o		\
+		boot_font.o boot_dat.o
 
 EE_OBJS	:= $(EE_OBJS:%=$(EE_OBJS_DIR)/%)
 
 EE_LIBS	=	-lc -lgslib -ldmaKit -lpad -lfileXio -ljpg -lmf	-lhdd -lpng -lm	 -lz -lmc	\
-		-lpatches -lpoweroff -lmad -lsample -lcdvd -ldebug -lps2ip -lscew -lexpat	\
-		-liconv
+		-lpatches -lpoweroff -lmad -lsample -ldebug -lps2ip -lscew -lexpat -liconv	\
+		-lps2time -lcdvd -lsmbclient
 
 # add lib directories
 EE_LDFLAGS +=	-L../lib/gsLib -L../lib/dmaKit -L../lib/libmad -L../lib/libsample -L../lib/libjpg \
 		-L../lib/libexpat -L../lib/libscew -L../lib/libpng -L../lib/libz \
-		-L../lib/libiconv
+		-L../lib/libiconv -L../lib/libps2time -L../lib/libsmb
 
 # add include directories
 EE_INCS += -I../lib/libexpat
@@ -98,6 +99,9 @@ $(EE_OBJS_DIR)/ps2ftpd.s:
 
 $(EE_OBJS_DIR)/sjpcm.s:
 	bin2s ../irx/sjpcm/sjpcm.irx $(EE_OBJS_DIR)/sjpcm.s sjpcm_irx
+
+$(EE_OBJS_DIR)/dns.s:
+	bin2s $(PS2SDK)/iop/irx/dns.irx $(EE_OBJS_DIR)/dns.s dns_irx
 
 $(EE_OBJS_DIR)/boot_bkg.s:
 	bin2s ../data/boot_bkg.png $(EE_OBJS_DIR)/boot_bkg.s boot_bkg
