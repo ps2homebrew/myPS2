@@ -130,7 +130,7 @@ int SC_LoadConfig( int bSafeMode )
 	while( ReadBufLine( &pBufPtr, strLine ) )
 	{
 		// skip comments and empty lines
-		if( strLine[0] == '#' || strLine[0] == '\n' )
+		if( strLine[0] == '#' || strLine[0] == '\n' || (strLine[0] == '\r' && strLine[1] == '\n') )
 			continue;
 
 		// grab key
@@ -166,7 +166,7 @@ int SC_LoadConfig( int bSafeMode )
 			p++;
 
 		// remove line end and trailing whitespaces from token
-		while( *pEnd == ' ' || *pEnd == '\t' || *pEnd == '\n') {
+		while( *pEnd == ' ' || *pEnd == '\t' || *pEnd == '\n' || *pEnd == '\r' ) {
 			*pEnd = 0;
 			pEnd--;
 		}
@@ -231,7 +231,7 @@ int SC_SaveConfig( void )
 		FileWrite( fHandle, " ", strlen(" ") );
 
 		FileWrite( fHandle, pair->value, strlen(pair->value) );
-		FileWrite( fHandle, "\n", strlen("\n") );
+		FileWrite( fHandle, "\r\n", strlen("\r\n") );
 
 		pair = pair->next;
 	}
