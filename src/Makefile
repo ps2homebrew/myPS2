@@ -92,7 +92,7 @@ $(EE_OBJS_DIR)/ps2ips.s:
 	bin2s $(PS2SDK)/iop/irx/ps2ips.irx $(EE_OBJS_DIR)/ps2ips.s ps2ips_irx
 
 $(EE_OBJS_DIR)/ps2smap.s:
-	bin2s $(PS2SDK)/iop/irx/PS2SMAP.IRX $(EE_OBJS_DIR)/ps2smap.s ps2smap_irx
+	bin2s ../irx/ps2smap/ps2smap.irx $(EE_OBJS_DIR)/ps2smap.s ps2smap_irx
 
 $(EE_OBJS_DIR)/ps2ftpd.s:
 	bin2s ../irx/ps2ftpd/ps2ftpd.irx $(EE_OBJS_DIR)/ps2ftpd.s ps2ftpd_irx

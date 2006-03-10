@@ -59,6 +59,14 @@ MA  02110-1301  USA
 	((u32)(CMPE) << 8)  | ((u32)(OVFE) << 9) |	\
 	((u32)(EQUF) << 10) | ((u32)(OVFF) << 11))
 
+#ifndef TIMEVAL
+#define TIMEVAL
+struct timeval {
+ long    tv_sec;         /* seconds */
+ long    tv_usec;        /* and microseconds */
+};
+#endif
+
 int			ps2time_intr_handler( int ca );
 int			ps2time_init( void );
 

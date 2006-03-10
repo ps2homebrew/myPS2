@@ -731,14 +731,14 @@ void usb_bulk_probeEndpoint(mass_dev* dev, UsbEndpointDescriptor* endpoint) {
 		/* out transfer */
 		if ((endpoint->bEndpointAddress & 0x80) == 0 && dev->bulkEpO < 0) {
 			dev->bulkEpOAddr = endpoint->bEndpointAddress;
-			dev->bulkEpO = UsbOpenBulkEndpoint(dev->devId, endpoint);
+			dev->bulkEpO = UsbOpenEndpointAligned(dev->devId, endpoint);
 			dev->packetSzO = endpoint->wMaxPacketSizeHB * 256 + endpoint->wMaxPacketSizeLB;
 			XPRINTF("register Output endpoint id =%i addr=%02X packetSize=%i\n", dev->bulkEpO,dev->bulkEpOAddr, dev->packetSzO);
 		}else
 		/* in transfer */
 		if ((endpoint->bEndpointAddress & 0x80) != 0 && dev->bulkEpI < 0) {
 			dev->bulkEpIAddr = endpoint->bEndpointAddress;
-			dev->bulkEpI = UsbOpenBulkEndpoint(dev->devId, endpoint);
+			dev->bulkEpI = UsbOpenEndpointAligned(dev->devId, endpoint);
 			dev->packetSzI = endpoint->wMaxPacketSizeHB * 256 + endpoint->wMaxPacketSizeLB;
 			XPRINTF("register Intput endpoint id =%i addr=%02X packetSize=%i\n", dev->bulkEpI, dev->bulkEpIAddr, dev->packetSzI);
 		}

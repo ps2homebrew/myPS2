@@ -10,8 +10,7 @@ COMPILING
 ---------
 You need to have PS2SDK to compile myPS2.
 
-IRX files are not allowed in the SVN repository so you will have to
-download these 2 modules before compiling:
+You will have to download these 2 modules before compiling:
 	
 	CDVD.IRX
 	Can be found on ps2dev.org under "Projects"
@@ -22,6 +21,10 @@ download these 2 modules before compiling:
 	Can be found on ps2dev.org under "Sample Code"
 	SjPCM v2.1 - PCM streaming library for the PS2)
 	Place it under /irx/sjpcm/
+
+You will also have to checkout ps2eth from SVN (/ps2/ps2eth/) and
+compile it to build the ps2smap.irx module (It's also included in the
+PS2Link v1.24 download) and place it under /irx/ps2smap/.
 
 To compile just 'make' the makefile in the main directory and it should put
 out a MYPS2.ELF in the same directory.
