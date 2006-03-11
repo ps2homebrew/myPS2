@@ -26,6 +26,9 @@ You will also have to checkout ps2eth from SVN (/ps2/ps2eth/) and
 compile it to build the ps2smap.irx module (It's also included in the
 PS2Link v1.24 download) and place it under /irx/ps2smap/.
 
+I have made some changes to the PS2IPS module. You can find the changed
+files under /ps2sdk/ps2sdksrc/.
+
 To compile just 'make' the makefile in the main directory and it should put
 out a MYPS2.ELF in the same directory.
 
