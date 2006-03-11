@@ -132,8 +132,19 @@ int main( int argc, char *argv[] )
 	}
 	
 	// boot in safe mode?
-	if( GP_GetButtons() & (PAD_R1 | PAD_R2 | PAD_L1 | PAD_L2) )
+	if( ( GP_GetButtons() & (PAD_R1 | PAD_R2 | PAD_L1 | PAD_L2) ) == (PAD_R1 | PAD_R2 | PAD_L1 | PAD_L2) )
 		bSafeMode = 1;
+
+	// Wait for Usb device to be ready before loading config file from usb
+	if( GetBootMode() == BOOT_USB )
+	{
+		Bootscreen_printf("Waiting for Usb...");
+
+		//Do nothing
+		while(USB_Available() != 1){}
+
+		Bootscreen_printf("^1OK\n");
+	}
 
 	// load system config
 	SC_LoadConfig(bSafeMode);
