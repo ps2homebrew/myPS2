@@ -14,7 +14,7 @@ EE_OBJS =	main.o GUI.o GUI_Load.o	GUI_Ctrl_Button.o GUI_Ctrl_Combo.o GUI_Ctrl_Di
 		GUI_M_MyPictures.o GUI_M_MyPrograms.o GUI_M_Network.o GUI_M_Partitions.o	\
 		GUI_M_Radio.o GUI_M_Samba.o GUI_M_Settings.o GUI_M_Skins.o GUI_M_View.o		\
 		gamepad.o elf.o	imgscale.o file.o sysconf.o mp3.o scheduler.o net.o		\
-		bootscreen.o mass_rpc.o cdvd_rpc.o charset.o sjpcm_rpc.o samba.o loader.o	\
+		bootscreen.o mass_rpc.o cdvd_rpc.o charset.o sjpcm_rpc.o samba.o		\
 		usb_mass.o iomanx.o filexio.o ps2dev9.o ps2atad.o ps2hdd.o ps2fs.o poweroff.o	\
 		cdvd.o ps2ip.o ps2ips.o ps2smap.o ps2ftpd.o sjpcm.o dns.o boot_bkg.o		\
 		boot_font.o boot_dat.o
@@ -54,9 +54,6 @@ $(EE_OBJS_DIR)/%.o : %.s
 
 $(EE_OBJS_DIR)/%.o : %.S
 	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -c $< -o $@
-
-$(EE_OBJS_DIR)/loader.s:
-	bin2s ../elf/loader/loader.elf $(EE_OBJS_DIR)/loader.s loader_elf
 
 $(EE_OBJS_DIR)/usb_mass.s:
 	bin2s ../irx/usb_mass/usb_mass.irx $(EE_OBJS_DIR)/usb_mass.s usb_mass_irx

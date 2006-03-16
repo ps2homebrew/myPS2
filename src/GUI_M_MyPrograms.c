@@ -67,7 +67,7 @@ unsigned int GUI_CB_MyPrograms( GUIMenu_t *lpGUIMenu, unsigned int nGUIMsg,
 
 void StartELF( void )
 {
-	char szELFPath[MAX_PATH + 1];
+	static char szELFPath[MAX_PATH + 1];
 
 	snprintf(	szELFPath, sizeof(szELFPath), "%s%s",
 				GUI_Ctrl_Dirview_GetDir(GUI_ControlByID(ID_DIR_VIEW)),
@@ -84,5 +84,5 @@ void StartELF( void )
 	// make sure any playing sounds are stopped
 	MP3_Stop();
 	
-	RunLoaderELF(szELFPath);
+	RunELF(szELFPath);
 }

@@ -70,6 +70,6 @@ typedef struct
 //
 
 int CheckELFHeader( const char *path );
-int RunLoaderELF( char *filename );
+int RunELF( char *pFileName );
 
 #endif

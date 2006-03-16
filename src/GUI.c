@@ -122,7 +122,7 @@ void GUI_Run( void *pThreadArgs )
 		// update clock display once a minute
 		if( nTimeUpdate < ps2time_time(NULL) )
 		{
-			nTimeUpdate = ps2time_time(NULL) * 60;
+			nTimeUpdate = ps2time_time(NULL) + 60;
 			GUI_Render();
 		}
 

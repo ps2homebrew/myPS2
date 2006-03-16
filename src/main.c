@@ -881,7 +881,8 @@ int MC_Available( int nPort )
 // --------------------- USB initialization and helper functions ---------------------
 //
 
-int nUSBInit = 0;
+static int nUSBInit		= 0;
+static int nUSBAvail	= 0;
 
 const char *pUSBDPath[] =
 {
@@ -893,6 +894,16 @@ const char *pUSBDPath[] =
 	"mc0:/SMS/USBD.IRX",
 	"mc0:/PS2MP3/USBD.IRX"
 };
+
+static void _usb_handler_connect ( void* apPkt, void* apArg )
+{
+	nUSBAvail = 1;
+}
+
+static void _usb_handler_disconnect( void* apPkt, void* apArg )
+{
+	nUSBAvail = 0;
+}
 
 //
 // USB_Init - Loads modules and initializes USB
@@ -993,8 +1004,13 @@ void USB_Init( void )
 		Bootscreen_printf("usb_mass_bindRPC ^1OK^0\n");
 	}
 
-	// everything's ok
 	nUSBInit = 1;
+
+	DI();
+		SifAddCmdHandler( 0x0012, _usb_handler_connect, 0 );
+		SifAddCmdHandler( 0x0013, _usb_handler_disconnect, 0 );
+	EI();
+
 }
 
 //
@@ -1004,10 +1020,7 @@ void USB_Init( void )
 
 int USB_Available( void )
 {
-	if( !nUSBInit )
-		return 0;
-
-	return usb_mass_getConnectState(0);
+	return nUSBAvail;
 }
 
 //
